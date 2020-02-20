@@ -7,14 +7,14 @@ typedef uint8_t  UTF_8;
 #define UTF8_BYTEMASK            0xBF
 #define UTF8_BYTEMARK            0x80
 
-#define UTF16_MAX_BMP            (UTF_32)0x0000FFFF
-#define UTF16_SUR_HIGH_START     (UTF_32)0xD800
-#define UTF16_SUR_HIGH_END       (UTF_32)0xDBFF
-#define UTF16_SUR_LOW_START      (UTF_32)0xDC00
-#define UTF16_SUR_LOW_END        (UTF_32)0xDFFF
+#define UTF16_MAX_BMP            ((UTF_32)0x0000FFFF)
+#define UTF16_SUR_HIGH_START     ((UTF_32)0xD800)
+#define UTF16_SUR_HIGH_END       ((UTF_32)0xDBFF)
+#define UTF16_SUR_LOW_START      ((UTF_32)0xDC00)
+#define UTF16_SUR_LOW_END        ((UTF_32)0xDFFF)
 #define UTF16_HALFSHIFT          10
-#define UTF16_HALFBASE           (UTF_32)0x0010000UL
-#define UTF16_HALFMASK           (UTF_32)0x3FFUL
+#define UTF16_HALFBASE           ((UTF_32)0x0010000UL)
+#define UTF16_HALFMASK           ((UTF_32)0x3FFUL)
 
 #if defined HOST_DOS
 #	include <ctype.h>
@@ -126,7 +126,7 @@ typedef uint8_t  UTF_8;
 /* Calculate the number of characters between two pointers. */
 static __inline__ ssize_t fb_wstr_CalcDiff( const FB_WCHAR *ini, const FB_WCHAR *end )
 {
-	return ((intptr_t)end - (intptr_t)ini) / sizeof( FB_WCHAR );
+	return end - ini;
 }
 
 static __inline__ FB_WCHAR *fb_wstr_AllocTemp( ssize_t chars )
@@ -220,12 +220,12 @@ static __inline__ const FB_WCHAR *fb_wstr_SkipCharRev( const FB_WCHAR *s, ssize_
 		return s;
 
 	/* fixed-len's are filled with null's as in PB, strip them too */
-	const FB_WCHAR *p = &s[chars-1];
+	const FB_WCHAR *p = &s[chars];
 	while( chars > 0 )
 	{
-		if( *p != c )
-			return p;
 		--p;
+		if( *p != c )
+			return ++p;
 		--chars;
 	}
 

@@ -1,5 +1,5 @@
 ''  fbdoc - FreeBASIC User's Manual Converter/Generator
-''	Copyright (C) 2006-2008 The FreeBASIC development team.
+''	Copyright (C) 2006-2019 The FreeBASIC development team.
 ''
 ''	This program is free software; you can redistribute it and/or modify
 ''	it under the terms of the GNU General Public License as published by
@@ -23,29 +23,31 @@
 ''
 
 #include once "fbdoc_defs.bi"
-#include once "CWikiCon.bi"
+#include once "CWikiConUrl.bi"
 
 namespace fb.fbdoc
 
-	dim shared as CWikiCon ptr wikicon
+	dim shared as CWikiConUrl ptr wikicon
 	dim shared as string wiki_url
+	dim shared as string ca_file
 
 	'' --------------------------------------------------------------------------
 	'' Wiki Connection and Page Loader
 	'' --------------------------------------------------------------------------
 
 	'':::::
-	sub Connection_SetUrl( byval url as zstring ptr )
+	sub Connection_SetUrl( byval url as zstring ptr, byval certificate as zstring ptr )
 		wiki_url = *url
+		ca_file = *certificate
 	end sub
 
 	'':::::
-	function Connection_Create( ) as CWikiCon Ptr
+	function Connection_Create( ) as CWikiConUrl Ptr
 		if( wikicon <> NULL ) then
 			return wikicon
 		end if
 		
-		wikicon = new CWikiCon( wiki_url )
+		wikicon = new CWikiConUrl( wiki_url, ca_file )
 
 		return wikicon
 		

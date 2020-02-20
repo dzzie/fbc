@@ -812,11 +812,15 @@ function hEscape _
 			dst += 1
 
 			if( c < 8 ) then
+				dst[0] = CHAR_0
+				dst[1] = CHAR_0
+				dst += 2
 				c += CHAR_0
 
 			elseif( c < 64 ) then
-				*dst = CHAR_0 + (c shr 3)
-				dst += 1
+				dst[0] = CHAR_0
+				dst[1] = CHAR_0 + (c shr 3)
+				dst += 2
 				c = CHAR_0 + (c and 7)
 
 			else
@@ -1039,10 +1043,10 @@ function hEscapeW _
 			char = *src
 			src += 1
 
-			'' octagonal? convert to integer..
-			'' note: it can be up to 6 digits due wchr()
+			'' octal? convert to integer..
+			'' note: it can be up to 11 digits due wchr()
 			'' when evaluated at compile-time
-			if( (char >= 1) and (char <= 6) ) then
+			if( (char >= 1) and (char <= 11) ) then
 				i = char
 				char = 0
 
@@ -1199,9 +1203,9 @@ function hUnescapeW _
 			src += 1
 
 			'' octagonal? convert to integer..
-			'' note: it can be up to 6 digits due wchr()
+			'' note: it can be up to 11 digits due wchr()
 			'' when evaluated at compile-time
-			if( (char >= 1) and (char <= 6) ) then
+			if( (char >= 1) and (char <= 11) ) then
 				i = char
 				char = 0
 				do while( i > 0 )

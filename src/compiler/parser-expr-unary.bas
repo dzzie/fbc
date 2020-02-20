@@ -362,6 +362,13 @@ private function hCast( byval options as AST_CONVOPT ) as ASTNODE ptr
 	end if
 
 	options or= AST_CONVOPT_CHECKSTR
+
+	'' -w constness implies -w funcptr
+	if( (fbPdCheckIsSet( FB_PDCHECK_CASTFUNCPTR ) = FALSE) _
+		and (fbPdCheckIsSet( FB_PDCHECK_CONSTNESS ) = FALSE) ) then
+		options or= AST_CONVOPT_DONTWARNFUNCPTR
+	end if
+
 	expr = astNewCONV( dtype, subtype, expr, options, @errmsg )
 	if( expr = NULL ) then
 		if( errmsg = FB_ERRMSG_OK ) then
@@ -481,7 +488,13 @@ private function hVarPtrBody _
 	end if
 
 	'' skip any casting if they won't do any conversion
-	dim as ASTNODE ptr t = astSkipNoConvCAST( expr )
+	'' TODO: replace astSkipNoConvCast() with astSkipConstCASTs()
+	'' where applicable.  Need to verify.  On one hand, we
+	'' probably don't care about CONST anymore, on the other
+	'' hand, we need to make sure we don't prematurely optimize
+	'' the CONST specifier away in the event that it is needed
+	'' to be known with AST type checking later.
+	dim as ASTNODE ptr t = astSkipConstCASTs( expr )
 
 	select case as const astGetClass( t )
 	case AST_NODECLASS_VAR, AST_NODECLASS_IDX, AST_NODECLASS_DEREF, _
@@ -648,6 +661,15 @@ function cAddrOfExpression( ) as ASTNODE ptr
 
 		dim as integer dtype = astGetDataType( expr )
 
+		'' UDT? it might be a kind of z|wstring
+		if( typeGet( dtype ) = FB_DATATYPE_STRUCT ) then
+			var sym = astGetSubType( expr )
+			if( symbGetUdtIsZstring( sym ) or symbGetUdtIsWstring( sym ) ) then
+				astTryOvlStringCONV( expr )
+				dtype = astGetDataType( expr )
+			end if
+		end if
+
 		if( symbIsString( dtype ) = FALSE ) then
 			errReport( FB_ERRMSG_INVALIDDATATYPES )
 			'' error recovery: skip until ')' and fake a node
@@ -670,16 +692,22 @@ function cAddrOfExpression( ) as ASTNODE ptr
 			errReportEx( FB_ERRMSG_INVALIDDATATYPES, "for STRPTR" )
 		end select
 
-		'' varlen? do: *cast( zstring ptr ptr, @expr )
-		if( dtype = FB_DATATYPE_STRING ) then
+		'' varlen? do: *cast( [const] zstring const ptr ptr, @expr )
+		select case dtype
+		case FB_DATATYPE_STRING
 			expr = astBuildStrPtr( expr )
 
+		case FB_DATATYPE_WCHAR
+			expr = astNewCONV( typeAddrOf( FB_DATATYPE_WCHAR ), _
+							   NULL, _
+							   astNewADDROF( expr ) )
+
 		'' anything else: do cast( zstring ptr, @expr )
-		else
+		case else
 			expr = astNewCONV( typeAddrOf( FB_DATATYPE_CHAR ), _
 							   NULL, _
 							   astNewADDROF( expr ) )
-		end if
+		end select
 
 		'' ')'
 		if( hMatch( CHAR_RPRNT ) = FALSE ) then

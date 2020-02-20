@@ -80,6 +80,8 @@ function cLRSetStmt(byval tk as FB_TOKEN) as integer
 		dstexpr = CREATEFAKEID( )
 	end if
 
+	astTryOvlStringCONV( dstexpr )
+
 	dtype1 = astGetDataType( dstexpr )
 	select case as const dtype1
 	case FB_DATATYPE_STRING, FB_DATATYPE_FIXSTR, _
@@ -126,6 +128,8 @@ function cLRSetStmt(byval tk as FB_TOKEN) as integer
 	'' Expression
 	hMatchExpressionEx( srcexpr, dtype1 )
 
+	astTryOvlStringCONV( srcexpr )
+
 	dtype2 = astGetDataType( srcexpr )
 	select case as const dtype2
 	case FB_DATATYPE_STRING, FB_DATATYPE_FIXSTR, _
@@ -163,23 +167,27 @@ function cLRSetStmt(byval tk as FB_TOKEN) as integer
 		function = rtlMemCopyClear( dstexpr, symbGetLen( dst->subtype ), _
 		                            srcexpr, symbGetLen( src->subtype ) )
 	else
+		'' !!! TODO !!! - if udt extends z|wstring, check if operator len()
+		'' was overloaded and pass the length parameters to a separate
+		'' rtlib function
 		function = rtlStrLRSet( dstexpr, srcexpr, is_rset )
 	end if
 
 end function
 
 private function cStrCHR(byval is_wstr as integer) as ASTNODE ptr
-	static as zstring * 32*6+1 zs
-	static as wstring * 32*6+1 ws
-	static as zstring * 8+1 o
-	dim as longint v = any, i = any, cnt = any, isconst = any
+        '' Max length of a single octal code is 11 digits for &hffffffffU
+	static as zstring * 11+1 o
+	static as zstring * 32*(2+11)+1 zs
+	static as wstring * 32*(2+11)+1 ws
+	dim as integer v = any, i = any, cnt = any, isconst = any
 	dim as ASTNODE ptr exprtb(0 to 31) = any
 
 	hMatchLPRNT( )
 
 	cnt = 0
 	do
-		hMatchExpressionEx( exprtb(cnt), FB_DATATYPE_INTEGER )
+		hMatchExpressionEx( exprtb(cnt), FB_DATATYPE_ULONG )
 		cnt += 1
 		if( cnt >= 32 ) then
 			exit do
@@ -188,26 +196,23 @@ private function cStrCHR(byval is_wstr as integer) as ASTNODE ptr
 
 	hMatchRPRNT( )
 
-	'' if wstring, check if compile-time conversion can be done
-	if( is_wstr and (env.wchar_doconv = FALSE) ) then
-		isconst = FALSE
-	else
-		'' constant? evaluate at compile-time
-		isconst = TRUE
-		for i = 0 to cnt-1
-			if( astIsCONST( exprtb(i) ) = FALSE ) then
-				isconst = FALSE
-				exit for
-			end if
+	'' If all arguments are constant do the evaluation at compile-time.
+	'' We can do this because we generate internal escape codes which are
+	'' independent of compiler or target's sizeof(wstring) or the locale.
+	isconst = TRUE
+	for i = 0 to cnt-1
+		if( astIsCONST( exprtb(i) ) = FALSE ) then
+			isconst = FALSE
+			exit for
+		end if
 
-        	'' when the constant value is 0, we must not handle
-            '' this as a constant string
-			if( astConstEqZero( exprtb(i) ) ) then
-				isconst = FALSE
-				exit for
-			end if
-		next
-	end if
+		'' when the constant value is 0, we must not handle
+		'' this as a constant string
+		if( astConstEqZero( exprtb(i) ) ) then
+			isconst = FALSE
+			exit for
+		end if
+	next
 
 	if( isconst ) then
 		if( is_wstr = FALSE ) then
@@ -217,7 +222,7 @@ private function cStrCHR(byval is_wstr as integer) as ASTNODE ptr
 		end if
 
 		for i = 0 to cnt-1
-			v = astConstFlushToInt( exprtb(i) )
+			v = astConstFlushToInt( exprtb(i), FB_DATATYPE_ULONG )
 			exprtb(i) = NULL
 
 			if( is_wstr = FALSE ) then

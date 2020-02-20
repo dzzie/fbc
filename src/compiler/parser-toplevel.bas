@@ -37,6 +37,7 @@ sub parserSetCtx( )
 	parser.currblock = NULL
 
 	parser.nspcrec = 0
+	parser.nsprefix = NULL
 
 	parser.mangling = FB_MANGLING_BASIC
 
@@ -110,7 +111,7 @@ sub cProgram()
 	'' For each line...
 	do
 		'' line begin
-		astAdd( astNewDBG( AST_OP_DBG_LINEINI, lexLineNum( ) ) )
+		astAdd( astNewDBG( AST_OP_DBG_LINEINI, lexLineNum( ), env.inf.incfile ) )
 
 		'' Label?
 		cLabel( )
@@ -126,7 +127,7 @@ sub cProgram()
 		end if
 
 		'' Emit the current line in text form, for debugging purposes
-		if( env.clopt.debug ) then
+		if( env.clopt.debuginfo ) then
 			if( env.includerec = 0 ) then
 				hEmitCurrentLineText( )
 			end if

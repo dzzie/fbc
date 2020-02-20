@@ -8,6 +8,7 @@ endif
 FBC := fbc
 
 LIBFUNCS_SRC := \
+	cmd_opts.bas \
     funcs.bas \
     funcsdir.bas \
     fmtcode.bas \
@@ -29,7 +30,8 @@ APPS := \
     getimage$(EXEEXT) \
     spellit$(EXEEXT) \
     spell$(EXEEXT) \
-    samps$(EXEEXT)
+    samps$(EXEEXT) \
+	pretty$(EXEEXT)
 
 SAMPS_SRCS := \
     samps.bas \
@@ -48,13 +50,19 @@ TEMP_FILES := \
     mkerrtxt$(EXEEXT) \
     mkerrtxt.bas \
     imagelist.txt \
-    imagepages.txt
+    imagepages.txt \
+	delete.html
 
 HEADERS := $(wildcard *.bi)
 DEPS = ../libfbdoc/libfbdoc.a $(HEADERS)
 
 FBCFLAGS += -exx -g -i ../libfbdoc
 FBLFLAGS += -exx -g -p ../libfbdoc -l fbdoc
+
+ifdef HAVE_MYSQL
+    FBCFLAGS += -d HAVE_MYSQL
+	FBLFLAGS += -l mysql
+endif
 
 ifeq ($(EXEEXT),.exe)
   FBLFLAGS += -l ws2_32
@@ -63,7 +71,7 @@ endif
 .PHONY: all
 all: $(APPS) ../libfbdoc/libfbdoc.a
 
-getindex$(EXEEXT): getindex.bas $(DEPS)
+getindex$(EXEEXT): getindex.bas $(LIBFUNCS) $(DEPS)
 	$(FBC) $(FBCFLAGS) $< $(FBLFLAGS) -x $@
 
 getpage$(EXEEXT): getpage.bas $(LIBFUNCS) $(DEPS)
@@ -104,6 +112,9 @@ spell$(EXEEXT): spell.bas spellcheck.bas $(LIBFUNCS) $(DEPS)
 
 samps$(EXEEXT): $(SAMPS_SRCS) $(LIBFUNCS) $(DEPS)
 	$(FBC) $(FBCFLAGS) $(SAMPS_SRCS) $(FBLFLAGS) -x $@
+
+pretty$(EXEEXT): pretty.bas $(LIBFUNCS) $(DEPS)
+	$(FBC) $(FBCFLAGS) $< $(FBLFLAGS) -x $@
 
 $(LIBFUNCS): $(LIBFUNCS_SRC) $(HEADERS)
 	$(FBC) -lib -x $@ $(LIBFUNCS_SRC) $(FBCFLAGS)

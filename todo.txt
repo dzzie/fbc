@@ -39,6 +39,9 @@ o 64bit
   - 64bit bitfields aren't working properly - see tests/structs/bitfield-types.bas
 
 o LLVM backend
+  - _setVregDataType() currently generates code (bitcasts), unlike other backends.
+    It works for noconv casts on rvalues, but breaks for noconv casts on lvalues.
+    Maybe it should use the *(newtype*)&x trick to support it.
   - astTypeIniAddPad() must be ignored, but in exchange all fields must be
     initialized explicitly by specifying the data type
     (can use "zeroinitializer" as the value at least)
@@ -109,6 +112,11 @@ o ThreadCall
 o -exx should catch...
   - access to ERASEd or uninited (unREDIMed) dyn array
   - out-of-bounds dimension argument given to lbound()/ubound()
+  - add an -exx aka -eboolean check to detect illegal boolean values on read?
+  - expand on -elocation option to provide full location information or if not
+    given (or implied) optimize out calls to fb_ErrorSetFuncName() and 
+    fb_ErrorSetModName(), because we still get location from fb_ErrorThrowAt()
+	and fb_ErrorThrowEx().  Must test interaction with ON ERROR
 
 [ ] ctor/dtor
     - add 'function foo (...) as SomeObj = any', so #1682972 could be fixed AND when

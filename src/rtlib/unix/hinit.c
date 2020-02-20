@@ -1,6 +1,6 @@
 /* libfb initialization for Unix */
 
-/* for getpgid() */
+/* for getpgid() and PTHREAD_MUTEX_RECURSIVE */
 #define _GNU_SOURCE 1
 
 #include "../fb.h"
@@ -8,9 +8,21 @@
 #include "../fb_private_thread.h"
 #include <signal.h>
 #include <termcap.h>
-#ifdef HOST_LINUX
-#include <sys/io.h>
+
+#if defined HOST_LINUX && (defined HOST_X86 || defined HOST_X86_64)
+	/*
+	The sys/ headers are architecture and OS dependent. They 
+	do not exist across all targets and io.h in particular 
+	is intended for very low-level non-portable uses often 
+	in coordination with the kernel. The only targets that 
+	provide sys/io.h are x86*, Alpha, IA64, and 32-bit ARM.
+	No other systems provide it.
+	From https://bugzilla.redhat.com/show_bug.cgi?id=1116162
+	or http://www.hep.by/gnu/gnulib/ioperm.html#ioperm
+	*/
+	#include <sys/io.h>
 #endif
+
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
@@ -451,17 +463,7 @@ static void hInit( void )
 
 	/* make mutex recursive to behave the same on Win32 and Linux (if possible) */
 	pthread_mutexattr_init(&attr);
-
-	/* TODO: Figure out which Unixy systems have/don't have PTHREAD_MUTEX_RECURSIVE[_NP] */
-	/* Currently it seems that PTHREAD_MUTEX_RECURSIVE is the standard POSIX name,
-	   while PTHREAD_MUTEX_RECURSIVE_NP is something non-posixy used on Linux.
-	   Some Linux distros (or glibc/pthread versions) only seemed to make the *_NP
-	   version available (at least this was observed in the past). */
-#ifdef HOST_LINUX
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-#else
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-#endif
 
 #ifdef ENABLE_MT
 	/* Init multithreading support */

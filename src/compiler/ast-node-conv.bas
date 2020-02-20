@@ -285,7 +285,7 @@ end function
 		proc = symbFindCastOvlProc( to_dtype, to_subtype, node, @err_num )
 		if( proc <> NULL ) then
 			'' build a proc call
-			return astBuildCall( proc, l )
+			return astBuildCall( proc, node )
 		else
 			if( err_num <> FB_ERRMSG_OK ) then
 				return NULL
@@ -293,6 +293,43 @@ end function
 		end if
 	end scope
 #endmacro
+
+'':::::
+function astTryOvlStringCONV( byref expr as ASTNODE ptr ) as integer
+
+	dim as FBSYMBOL ptr proc = any, sym = any
+	dim as FB_ERRMSG err_num = any
+	dim as integer dtype = any
+
+	assert( expr )
+
+	if( astGetDataType( expr ) = FB_DATATYPE_STRUCT ) then
+		sym = astGetSubType( expr )
+
+		if( symbGetUdtIsZstring( sym ) ) then
+			dtype = FB_DATATYPE_CHAR
+		elseif( symbGetUdtIsWstring( sym ) ) then
+			dtype = FB_DATATYPE_WCHAR
+		else
+			dtype = FB_DATATYPE_VOID
+		end if
+
+		if( dtype <> FB_DATATYPE_VOID ) then
+			'' can cast to z|wstring?
+			proc = symbFindCastOvlProc( dtype, NULL, expr, @err_num )
+			if( proc ) then
+				'' same type?
+				if( symbGetType( proc ) = dtype ) then
+					expr = astBuildCall( proc, expr )
+					return TRUE
+				end if
+			end if
+		end if
+	end if
+
+	return FALSE
+
+end function
 
 '':::::
 function astNewCONV _
@@ -305,7 +342,7 @@ function astNewCONV _
 	) as ASTNODE ptr
 
 	dim as ASTNODE ptr n = any
-	dim as integer ldclass = any, ldtype = any, errmsg = any, doconv = any
+	dim as integer ldclass = any, ldtype = any, errmsg = any, wrnmsg = any, doconv = any
 
 	if( perrmsg ) then
 		*perrmsg = FB_ERRMSG_OK
@@ -317,7 +354,7 @@ function astNewCONV _
 	if( typeGetDtAndPtrOnly( ldtype ) = typeGetDtAndPtrOnly( to_dtype ) ) then
 		if( l->subtype = to_subtype ) then
 			'' Only CONST bits changed?
-			if( ldtype <> to_dtype ) then
+			if( typeGetConstMask( ldtype ) <> typeGetConstMask( to_dtype ) ) then
 				'' CONST node? Evaluate at compile-time
 				if( astIsCONST( l ) ) then
 					astSetType( l, to_dtype, to_subtype )
@@ -327,14 +364,63 @@ function astNewCONV _
 					'' to the expression parser
 					n = astNewNode( AST_NODECLASS_CONV, to_dtype, to_subtype )
 					n->l = l
+
 					n->cast.doconv = FALSE
 					n->cast.do_convfd2fs = FALSE
+					
+					'' data types and levels of pointer inderection are the same,
+					'' always record this as const conversion
+					n->cast.convconst = TRUE
+
+					if( (options and AST_CONVOPT_DONTWARNCONST) = 0 ) then
+						if( fbPdCheckIsSet( FB_PDCHECK_CONSTNESS ) ) then
+							errReportWarn( FB_WARNINGMSG_CONSTQUALIFIERDISCARDED )
+						end if
+					end if
 				end if
 			else
 				n = l
 			end if
 
 			return n
+		end if
+	end if
+
+	'' UDT? check if it is z|wstring? 
+	'' !!! TODO !!! make this block in to a function
+	''              re-use in astNewOvlCONV()
+	''              rewrite hDoGlobOpOverload() as astTry* function
+	if( typeGet( ldtype ) = FB_DATATYPE_STRUCT ) then
+		dim as FBSYMBOL ptr subtype = astGetSubtype( l )
+
+		if( symbGetUdtIsZstring( subtype ) or symbGetUdtIsWstring( subtype ) ) then
+			dim as FBSYMBOL ptr proc = NULL
+			dim as FB_ERRMSG err_num = any
+
+			'' check exact casts
+			proc = symbFindCastOvlProc( to_dtype, to_subtype, l, @err_num, TRUE )
+			if( proc <> NULL ) then
+				'' build a proc call
+				return astBuildCall( proc, l )
+			end if
+
+			'' check exact string pointer casts
+			if( symbGetUdtIsZstring( subtype ) ) then
+				proc = symbFindCastOvlProc( typeAddrof( FB_DATATYPE_CHAR ), NULL, l, @err_num, TRUE )
+			elseif( symbGetUdtIsWstring( subtype ) ) then
+				proc = symbFindCastOvlProc( typeAddrof( FB_DATATYPE_WCHAR ), NULL, l, @err_num, TRUE )
+			end if
+			if( proc <> NULL ) then
+				'' build a proc call
+				return astBuildCall( proc, l )
+			end if
+
+			'' strings? convert.
+			if( options and AST_CONVOPT_CHECKSTR ) then
+				if( astTryOvlStringCONV( l ) ) then
+					ldtype = astGetFullType( l )
+				end if
+			end if
 		end if
 	end if
 
@@ -472,6 +558,46 @@ function astNewCONV _
 	n->l = l
 	n->cast.doconv = doconv
 	n->cast.do_convfd2fs = FALSE
+	n->cast.convconst = FALSE
+
+	'' Discarding/changing const qualifier bits ?
+	if( typeIsPtr( ldtype ) and typeIsPtr( to_dtype ) ) then
+
+		wrnmsg = 0
+
+		n->cast.convconst = ( symbCheckConstAssign( to_dtype, ldtype, to_subtype, l->subtype, , , wrnmsg ) = FALSE )
+
+		'' -w funcptr  -w constness
+		''    no           no          don't warn anything         
+		''    yes          yes         warn everything
+		''    yes          no          warn if wrnmsg<>0
+		''    no           yes         warn everything (-w constness implies -w funcptr)
+
+		'' else check if const conversion
+		if( n->cast.convconst ) then
+
+			'' wrnmsg is <> 0 only if funcptr check failed
+			'' specific warning message takes priority over const warning
+			if( wrnmsg <> 0 ) then
+				if( (options and AST_CONVOPT_DONTWARNFUNCPTR) = 0 ) then
+					errReportWarn( wrnmsg, , , strptr(" in function pointer") )
+				end if
+
+			'' else, must be const warning
+			else
+
+				if( (options and AST_CONVOPT_DONTWARNCONST) = 0 ) then
+					if( fbPdCheckIsSet( FB_PDCHECK_CONSTNESS ) ) then
+						errReportWarn( FB_WARNINGMSG_CONSTQUALIFIERDISCARDED )
+					end if
+				end if
+
+			end if
+
+		end if
+	
+
+	end if
 
 	if( env.clopt.backend = FB_BACKEND_GAS ) then
 		if( doconv ) then
@@ -560,10 +686,18 @@ function astLoadCONV _
 
 	vs = astLoad( l )
 
+	'' n->cast
+	'' doconv convconst    do_convfd2fs
+	'' false  false        n/a           same size
+	'' false  true         n/a           same size - different const qualifiers, doesn't matter now
+	'' true   false        false         different sizes
+	'' true   false        true          convert floating point double to single
+	'' true   true         n/a           different sizes  - different const qualifiers, doesn't matter now
+
 	if( ast.doemit ) then
 		vs->vector = n->vector
 		if( n->cast.doconv ) then
-			vr = irAllocVreg( astGetDataType( n ), n->subtype )
+			vr = irAllocVreg( astGetFullType( n ), n->subtype )
 			vr->vector = n->vector
 			irEmitConvert( vr, vs )
 
@@ -580,7 +714,7 @@ function astLoadCONV _
 			end if
 		else
 			vr = vs
-			irSetVregDataType( vr, astGetDataType( n ), n->subtype )
+			irSetVregDataType( vr, astGetFullType( n ), n->subtype )
 		end if
 	end if
 
@@ -590,7 +724,7 @@ function astLoadCONV _
 
 end function
 
-function astSkipNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
+function astSkipConstCASTs( byval n as ASTNODE ptr ) as ASTNODE ptr
 	function = n
 	if( n->class = AST_NODECLASS_CONV ) then
 		if( n->cast.doconv = FALSE ) then
@@ -599,10 +733,19 @@ function astSkipNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
 	end if
 end function
 
+function astSkipNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
+	function = n
+	if( n->class = AST_NODECLASS_CONV ) then
+		if( n->cast.doconv = FALSE and n->cast.convconst = FALSE ) then
+			function = n->l
+		end if
+	end if
+end function
+
 function astRemoveNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
 	function = n
 	if( n->class = AST_NODECLASS_CONV ) then
-		if( n->cast.doconv = FALSE ) then
+		if( n->cast.doconv = FALSE and n->cast.convconst = FALSE ) then
 			function = n->l
 			n->l = NULL
 			astDelTree( n )

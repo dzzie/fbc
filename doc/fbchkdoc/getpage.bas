@@ -1,5 +1,5 @@
 ''  fbchkdoc - FreeBASIC Wiki Management Tools
-''	Copyright (C) 2008 Jeffery R. Marshall (coder[at]execulink[dot]com)
+''	Copyright (C) 2008-2019 Jeffery R. Marshall (coder[at]execulink[dot]com)
 ''
 ''	This program is free software; you can redistribute it and/or modify
 ''	it under the terms of the GNU General Public License as published by
@@ -23,11 +23,15 @@
 #include once "fbdoc_cache.bi"
 #include once "fbdoc_loader.bi"
 #include once "fbdoc_loader_web.bi"
-#include once "COptions.bi"
+
+#if defined(HAVE_MYSQL)
+#include once "CWikiConSql.bi"
+#endif
 
 '' fbchkdoc headers
 #include once "fbchkdoc.bi"
 #include once "funcs.bi"
+#include once "cmd_opts.bi"
 
 '' libs
 #inclib "pcre"
@@ -36,158 +40,154 @@
 using fb
 using fbdoc
 
-
 '' --------------------------------------------------------
 '' MAIN
 '' --------------------------------------------------------
 
-dim as string web_wiki_url, dev_wiki_url
-dim as string def_cache_dir, web_cache_dir, dev_cache_dir
+'' private options
+dim allow_retry as boolean = true
+dim as boolean bUseSql = false '' -usesql given on command line
 
-dim as integer i = 1, webPageCount = 0, nfailedpages = 0
-redim webPageList(1 to 1) as string
-redim failedpages(1 to 1) as string
-dim as string wiki_url, cache_dir, cmt
+'' enable url and cache
+#if defined(HAVE_MYSQL)
+cmd_opts_init( CMD_OPTS_ENABLE_URL or CMD_OPTS_ENABLE_CACHE or CMD_OPTS_ENABLE_PAGELIST or CMD_OPTS_ENABLE_DATABASE )
+#else
+cmd_opts_init( CMD_OPTS_ENABLE_URL or CMD_OPTS_ENABLE_CACHE or CMD_OPTS_ENABLE_PAGELIST )
+#endif
 
-if( command(i) = "" ) then
-	print "getpage {server} [pages] [@pagelist]"
+dim i as integer = 1
+while( command(i) > "" )
+	if( cmd_opts_read( i ) ) then
+		continue while
+	elseif( left( command(i), 1 ) = "-" ) then
+		select case lcase(command(i))
+		case "-auto"
+			allow_retry = false
+#if defined(HAVE_MYSQL)
+		case "-usesql"
+			bUseSql = true
+#endif
+		case else
+			cmd_opts_unrecognized_die( i )
+		end select
+	else
+		cmd_opts_unexpected_die( i )
+	end if
+	i += 1
+wend	
+
+if( app_opt.help ) then
+	print "getpage {server} [options] [pages] [@pagelist]"
 	print
-	print "server:"
-	print "   -web       get pages from the web server in to cache_dir"
-	print "   -web+      get pages from the web server in to web_cache_dir"
-	print "   -dev       get pages from the development server in to cache_dir"
-	print "   -dev+      get pages from the development server in to dev_cache_dir"
-	print "   -url URL   get pages from URL"
+	print "{server}:"
+	print "   -web             get pages from the web server in to cache_dir"
+	print "   -web+            get pages from the web server in to web_cache_dir"
+	print "   -dev             get pages from the development server in to cache_dir"
+	print "   -dev+            get pages from the development server in to dev_cache_dir"
 	print
-	print "options:"
-	print "   pages      list of wiki pages on the command line"
-	print "   @pagelist	 text file with a list of pages, one per line"
+	cmd_opts_show_help( "get page from", false )
+#if defined(HAVE_MYSQL)
+	print "   -usesql          use MySQL connection to read index"
+#endif
 	print
 	end 1
 end if
 
-'' read defaults from the configuration file (if it exists)
-scope
-	dim as COptions ptr opts = new COptions( default_optFile )
-	if( opts <> NULL ) then
-		web_wiki_url = opts->Get( "web_wiki_url" )
-		dev_wiki_url = opts->Get( "dev_wiki_url" )
-		def_cache_dir = opts->Get( "cache_dir", default_CacheDir )
-		web_cache_dir = opts->Get( "web_cache_dir", default_web_CacheDir )
-		dev_cache_dir = opts->Get( "dev_cache_dir", default_dev_CacheDir )
-		delete opts
-	else
-		print "Warning: unable to load options file '" + default_optFile + "'"
-		'' end 1
-		def_cache_dir = default_CacheDir
-		web_cache_dir = default_web_CacheDir
-		dev_cache_dir = default_dev_CacheDir
-	end if
-end scope
-
-while command(i) > ""
-	if( left( command(i), 1 ) = "-" ) then
-		select case lcase(command(i))
-		case "-web"
-			wiki_url = web_wiki_url 
-			cache_dir = def_cache_dir
-		case "-dev"
-			wiki_url = dev_wiki_url 
-			cache_dir = def_cache_dir
-		case "-web+"
-			wiki_url = web_wiki_url 
-			cache_dir = web_cache_dir 
-		case "-dev+"
-			wiki_url = dev_wiki_url 
-			cache_dir = dev_cache_dir
-		case "-url"
-			i += 1
-			wiki_url = command(i)
-			cache_dir = def_cache_dir
-		case else
-			print "Unrecognized option '" + command(i) + "'"
-			end 1
-		end select
-	else
-		if left( command(i), 1) = "@" then
-			scope
-				dim h as integer, x as string
-				h = freefile
-				if open( mid(command(i),2) for input access read as #h ) <> 0 then
-					print "Error reading '" + command(i) + "'"
-				else
-					while eof(h) = 0
-						line input #h, x
-						x = ParsePageName( x, cmt )
-						if( x > "" ) then 
-							webPageCount += 1
-							if( webPageCount > ubound(webPageList) ) then
-								redim preserve webPageList(1 to Ubound(webPageList) * 2)
-							end if
-							webPageList(webPageCount) = x
-						end if
-					wend
-					close #h
-				end if
-			end scope
-		else
-			webPageCount += 1
-			if( webPageCount > ubound(webPageList) ) then
-				redim preserve webPageList(1 to Ubound(webPageList) * 2)
-			end if
-			webPageList(webPageCount) = command(i)		
-		end if
-	end if
-	i += 1
-wend
-
-'' URL must be set
-if( len( wiki_url ) = 0 ) then
-	print "wiki_url not set."
+cmd_opts_resolve()
+cmd_opts_check_cache()
+cmd_opts_check_url()
+if( len( app_opt.wiki_url ) = 0 ) then
+	print "wiki_url not set. use -url, -web, -web+, -dev, or -dev+"
 	end 1
+end if
+if( bUseSql ) then
+	cmd_opts_check_database()
 end if
 
 '' no pages? nothing to do...
-if( webPageCount = 0 ) then
+if( app_opt.pageCount = 0 ) then
 	print "no pages specified."
 	end 1
 end if
 
+'' --------------------------------------------------------
+
+dim as integer nfailedpages = 0
+redim failedpages(1 to 1) as string
+
 '' main loop - has option to retry/list failed pages
 do
 
+	dim as CWikiCon ptr wikicon = NULL
+
 	'' Initialize the cache
-	if LocalCache_Create( cache_dir, CWikiCache.CACHE_REFRESH_ALL ) = FALSE then
-		print "Unable to use local cache dir " + cache_dir
+	if LocalCache_Create( app_opt.cache_dir, CWikiCache.CACHE_REFRESH_ALL ) = FALSE then
+		print "Unable to use local cache dir " + app_opt.cache_dir
 		end 1
 	end if
 
-	'' Initialize the wiki connection
-	Connection_SetUrl( wiki_url )
+	if( bUseSql ) then
+#if defined(HAVE_MYSQL)
+		cmd_opts_check_database()
 
-	print "URL: "; wiki_url
-	print "cache: "; cache_dir
+		wikicon = new CWikiConSql( app_opt.db_host, app_opt.db_user, app_opt.db_pass, app_opt.db_name, app_opt.db_port )
+		if wikicon = NULL then
+			print "Unable to create connection " + app_opt.cache_dir
+			end 1
+		end if
+
+		dim as CWikiConSql ptr o = cast( CWikiConSql ptr, wikicon )
+		if( o->Connect() = FALSE ) then
+			print "Error"
+			end 1
+		end if
+#endif
+	else
+		print "URL: "; app_opt.wiki_url
+
+		wikicon = new CWikiConUrl( app_opt.wiki_url, app_opt.ca_file )
+		if wikicon = NULL then
+			print "Unable to create connection " + app_opt.wiki_url
+			end 1
+		end if
+
+		if( app_opt.ca_file > "" ) then
+			print "Certificate: "; app_opt.ca_file
+		else
+			print "Certificate: none"
+		end if
+
+		print "cache: "; app_opt.cache_dir
+	end if
 
 	nfailedpages = 0
 
-	if( webPageCount > 0 ) then
+	if( app_opt.pageCount > 0 ) then
 		dim as integer i, j
 		dim as string ret
-		for i = 1 to webPageCount
-			ret = LoadPage( webPageList(i), FALSE, TRUE )
-			if( ret = "" ) then
-				print "Failed to load '" & webPageList(i) & "'"
+		for i = 1 to app_opt.pageCount
+			dim sBody as string = ""
+			print "Loading '" + app_opt.pageList(i) + "'"
+			if( wikicon->LoadPage( app_opt.pageList(i), sBody ) = FALSE ) then
+				print "Failed to load '" & app_opt.pageList(i) & "'"
 				nfailedpages += 1
 				redim preserve failedpages( 1 to nfailedpages )
-				failedpages(nfailedpages) = webPageList(i)
+				failedpages(nfailedpages) = app_opt.pageList(i)
+			else
+				if( wikicon->GetPageID() > 0 ) then
+					if( len(sBody) > 0 ) then
+						dim as CWikiCache ptr wikicache = LocalCache_Get()
+						wikicache->SavePage( app_opt.pageList(i), sBody )
+					end if
+				end if
 			end if
 
 			if( inkey = chr(27) ) then
 				
-				for j = i + 1 to webPageCount
+				for j = i + 1 to app_opt.pageCount
 					nfailedpages += 1
 					redim preserve failedpages( 1 to nfailedpages )
-					failedpages(nfailedpages) = webPageList(j)
+					failedpages(nfailedpages) = app_opt.pageList(j)
 				next
 
 				exit for
@@ -197,11 +197,12 @@ do
 		next
 	end if
 
-	Connection_Destroy()
+	delete wikicon
+
 	LocalCache_Destroy()
 
 	'' Check for failed pages
-	if( nfailedpages > 0 ) then
+	if( (nfailedpages > 0) and allow_retry ) then
 		print
 		dim k as string
 		do
@@ -219,9 +220,9 @@ do
 			case "y"
 				
 				for i = 1 to nfailedpages
-					webPageList(i) = failedpages(i)
+					app_opt.pageList(i) = failedpages(i)
 				next
-				webPageCount = nfailedpages
+				app_opt.pageCount = nfailedpages
 
 				exit do
 

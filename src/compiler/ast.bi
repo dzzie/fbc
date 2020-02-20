@@ -70,6 +70,7 @@ enum AST_NODECLASS
 	AST_NODECLASS_TYPEINI_SCOPEEND
 
 	AST_NODECLASS_PROC
+	AST_NODECLASS_MACRO
 
 	AST_CLASSES
 end enum
@@ -167,12 +168,13 @@ type AST_NODE_JMPTB
 	labelcount			as integer
 
 	deflabel			as FBSYMBOL ptr
-	minval				as ulongint
-	maxval				as ulongint
+	bias				as ulongint
+	span				as ulongint
 end type
 
 type AST_NODE_DBG
 	ex				as integer
+	filename		as zstring ptr
 	op				as integer
 end type
 
@@ -244,8 +246,9 @@ type AST_NODE_LINK
 end type
 
 type AST_NODE_CAST
-	doconv 			as integer						'' do conversion (TRUE or FALSE)
-	do_convfd2fs		as integer  '' whether or not to ensure truncation in double2single conversions
+	doconv 			as integer	'' do conversion (TRUE or FALSE)
+	do_convfd2fs	as integer  '' whether or not to ensure truncation in double2single conversions
+	convconst		as integer	'' const qualifier bits discarded/changed in the conversion (TRUE or FALSE)
 end type
 
 ''
@@ -529,7 +532,11 @@ enum AST_CONVOPT
 	AST_CONVOPT_CHECKSTR = &h2
 	AST_CONVOPT_PTRONLY  = &h4
 	AST_CONVOPT_DONTCHKPTR = &h8
+	AST_CONVOPT_DONTWARNCONST = &h10
+	AST_CONVOPT_DONTWARNFUNCPTR = &h20
 end enum
+
+declare function astTryOvlStringCONV( byref expr as ASTNODE ptr ) as integer
 
 declare function astNewCONV _
 	( _
@@ -554,6 +561,7 @@ declare sub astUpdateCONVFD2FS _
 		byval is_expr as integer _
 	)
 
+declare function astSkipConstCASTs( byval n as ASTNODE ptr ) as ASTNODE ptr
 declare function astSkipNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
 declare function astRemoveNoConvCAST( byval n as ASTNODE ptr ) as ASTNODE ptr
 declare function astSkipCASTs( byval n as ASTNODE ptr ) as ASTNODE ptr
@@ -731,8 +739,8 @@ declare function astBuildJMPTB _
 		byval labels1 as FBSYMBOL ptr ptr, _
 		byval labelcount as integer, _
 		byval deflabel as FBSYMBOL ptr, _
-		byval minval as ulongint, _
-		byval maxval as ulongint _
+		byval bias as ulongint, _
+		byval span as ulongint _
 	) as ASTNODE ptr
 
 declare function astNewLOOP _
@@ -791,7 +799,8 @@ declare function astNewASM( byval asmtokhead as ASTASMTOK ptr ) as ASTNODE ptr
 declare function astNewDBG _
 	( _
 		byval op as integer, _
-		byval ex as integer = 0 _
+		byval ex as integer = 0, _
+		byval filename as zstring ptr = 0 _
 	) as ASTNODE ptr
 
 declare function astNewMEM _
@@ -800,6 +809,15 @@ declare function astNewMEM _
 		byval l as ASTNODE ptr, _
 		byval r as ASTNODE ptr, _
 		byval bytes as longint = 0 _
+	) as ASTNODE ptr
+
+declare function astNewMACRO _
+	( _
+		byval op as AST_OP, _
+		byval arg1 as ASTNODE ptr, _
+		byval arg2 as ASTNODE ptr, _
+		byval dtype as integer, _
+		byval subtype as FBSYMBOL ptr _
 	) as ASTNODE ptr
 
 declare function astBuildNewOp _
@@ -1169,6 +1187,25 @@ declare function astBuildDtorCall _
 		byval ignore_virtual as integer = FALSE _
 	) as ASTNODE ptr
 
+declare function astBuildWhileCounterBegin _
+	( _
+		byval tree as ASTNODE ptr, _
+		byval cnt as FBSYMBOL ptr, _
+		byval label as FBSYMBOL ptr, _
+		byval exitlabel as FBSYMBOL ptr, _
+		byval initexpr as ASTNODE ptr, _
+		byval flush_label as integer = TRUE _
+	) as ASTNODE ptr
+
+declare function astBuildWhileCounterEnd _
+	( _
+		byval tree as ASTNODE ptr, _
+		byval cnt as FBSYMBOL ptr, _
+		byval label as FBSYMBOL ptr, _
+		byval exitlabel as FBSYMBOL ptr, _
+		byval flush_label as integer = TRUE _
+	) as ASTNODE ptr
+
 declare function astBuildForBegin _
 	( _
 		byval tree as ASTNODE ptr, _
@@ -1364,6 +1401,7 @@ declare function astLoadSCOPEBEGIN( byval n as ASTNODE ptr ) as IRVREG ptr
 declare function astLoadSCOPEEND( byval n as ASTNODE ptr ) as IRVREG ptr
 declare function astLoadDECL( byval n as ASTNODE ptr ) as IRVREG ptr
 declare function astLoadNIDXARRAY( byval n as ASTNODE ptr ) as IRVREG ptr
+declare function astLoadMACRO( byval n as ASTNODE ptr ) as IRVREG ptr
 
 ''
 '' macros
@@ -1465,11 +1503,9 @@ declare function astLoadNIDXARRAY( byval n as ASTNODE ptr ) as IRVREG ptr
 ''
 extern ast as ASTCTX
 
-extern ast_bitmaskTB( 0 to 32 ) as uinteger
-
 extern ast_opTB( 0 to AST_OPCODES-1 ) as AST_OPINFO
 
-declare function astDumpOp( byval op as AST_OP ) as string
+declare function astDumpOpToStr( byval op as AST_OP ) as string
 
 declare sub astDumpTree _
 	( _

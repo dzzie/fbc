@@ -480,6 +480,11 @@ enum FB_TOKEN
 	FB_TK_PAINT
 	FB_TK_DRAW
 	FB_TK_IMAGECREATE
+
+	FB_TK_CVA_START
+	FB_TK_CVA_ARG
+	FB_TK_CVA_END
+	FB_TK_CVA_COPY
     
     FB_TK_THREADCALL
 
@@ -546,11 +551,19 @@ enum FB_TARGETOPT
 	''    hidden param is popped according to calling convention
 	FB_TARGETOPT_CALLEEPOPSHIDDENPTR = &h00000008
 
-	'' Returning structures in registers only exists on Win32, and
+	'' Returning structures in registers only exists on Win32 and Darwin/MacOSX, and
 	'' - neither Linux GCC (following the i386 SysV ABI),
 	'' - nor DJGPP
-	'' do it. TODO: what about the BSDs and Darwin/MacOSX?
+	'' do it. TODO: what about the BSDs?
 	FB_TARGETOPT_RETURNINREGS        = &h00000010
+
+	'' Whether the stack needs to be aligned to 16 bytes before any
+	'' call to external code (x86/x86_64 GNU/Linux and Darwin)
+	FB_TARGETOPT_STACKALIGN16        = &h00000020
+
+	FB_TARGETOPT_ELF   = &h00000040
+	FB_TARGETOPT_COFF  = &h00000080
+	FB_TARGETOPT_MACHO = &h00000100
 end enum
 
 type FBTARGET
@@ -608,8 +621,9 @@ type FBENV
 	ppfile_num		as integer					'' -pp output file
 
 	'' include files
-	incfilehash		as THASH
-	inconcehash		as THASH
+	filenamehash		as THASH
+	incfilehash		as THASH					'' A subset of filenamehash
+	inconcehash		as THASH					'' A subset of filenamehash
 	includerec		as integer					'' >0 if parsing an include file
 
 	main			as FBMAIN
@@ -634,9 +648,6 @@ declare function fbGetInputFileParentDir( ) as string
 declare sub fbAddLib(byval libname as zstring ptr)
 declare sub fbAddLibPath(byval path as zstring ptr)
 
-''
-'' super globals
-''
-common shared as FBENV env
+extern env as FBENV
 
 #endif ''__FBINT_BI__

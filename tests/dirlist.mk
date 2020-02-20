@@ -11,11 +11,13 @@ comments \
 compound \
 console \
 const \
+cpp \
 crt \
 data \
 datetime \
 dim \
 expressions \
+fbc-int \
 file \
 functions \
 gfx \
@@ -33,6 +35,8 @@ structs \
 swap \
 threads \
 typedef \
+udt-wstring \
+udt-zstring \
 virtual \
 visibility \
 wstring

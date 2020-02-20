@@ -49,7 +49,7 @@ declare function _getTypeString( byval dtype as integer ) as const zstring ptr
 
 	'' same order as FB_DATATYPE
 	dim shared dtypeTB(0 to FB_DATATYPES-1) as EMITDATATYPE => _
-	{ _
+	{ _ '' rnametb mname
 		( 0, "void ptr"  ), _ '' void
 		( 0, "byte ptr"  ), _ '' boolean
 		( 0, "byte ptr"  ), _ '' byte
@@ -69,6 +69,7 @@ declare function _getTypeString( byval dtype as integer ) as const zstring ptr
 		( 3, "qword ptr" ), _ '' double
 		( 0, ""          ), _ '' string
 		( 0, "byte ptr"  ), _ '' fix-len string
+		( 0, "dword ptr" ), _ '' va_list
 		( 2, "dword ptr" ), _ '' struct
 		( 0, ""          ), _ '' namespace
 		( 2, "dword ptr" ), _ '' function
@@ -512,7 +513,7 @@ sub outp _
 
     static as string ostr
 
-	if( env.clopt.debug ) then
+	if( env.clopt.debuginfo ) then
 		ostr = TABCHAR
 		ostr += *s
 	else
@@ -1034,35 +1035,89 @@ private sub hClearLocals _
 end sub
 
 '':::::
+'' Amount to decrement esp
+private function hFrameBytesToAlloc _
+	( _
+		byval proc as FBSYMBOL ptr _
+	) as integer static
+
+	dim as integer bytestoalloc, bytespushed = any
+
+    	bytestoalloc = ((proc->proc.ext->stk.localmax - EMIT_LOCSTART) + 3) and (not 3)
+
+	if( (env.target.options and FB_TARGETOPT_STACKALIGN16) <> 0 ) then
+
+		'' Calculate amount of space used in the stack frame in addition to locals/temps
+		'EMIT_ARGSTART includes eip and ebp pushed to stack
+		bytespushed = EMIT_ARGSTART
+		if( EMIT_REGISUSED( FB_DATACLASS_INTEGER, EMIT_REG_EDI ) ) then
+			bytespushed += 4
+		end if
+		if( EMIT_REGISUSED( FB_DATACLASS_INTEGER, EMIT_REG_ESI ) ) then
+			bytespushed += 4
+		end if
+		if( EMIT_REGISUSED( FB_DATACLASS_INTEGER, EMIT_REG_EBX ) ) then
+			bytespushed += 4
+		end if
+
+		'' Ensure total size of locals + preserved registers (inc. eip) + padding is a multiple of 16
+		bytestoalloc += bytespushed
+		bytestoalloc = (bytestoalloc + 15) and (not 15)
+		bytestoalloc -= bytespushed
+	end if
+
+	return bytestoalloc
+end function
+
+'':::::
+'' Stack frames are skipped if possible (and not debug/profile build) or naked.
+'' In particular they can normally be skipped if the function has no arguments
+'' or locals, meaning that nothing needs to be indexed with ebp.
+'' The stack contents is as follows:
+'' (ebp-addressed) arguments
+''                               <-- aligned (on 4/16 byte boundary)
+'' (ebp-addressed) return address
+'' (ebp-addressed) saved ebp (ebp points here)
+'' (ebp-addressed) locals and temp variables
+''                 padding for 16 byte alignment (if needed)
+'' (esp-addressed) saved ebx, esi, edi (if needed)
+''                               <-- aligned (on 4/16 byte boundary)
+'' (esp-addressed) function arguments and temps
+''
 private sub hCreateFrame _
 	( _
 		byval proc as FBSYMBOL ptr _
 	) static
 
-    dim as integer bytestoalloc, bytestoclear
+	dim as integer bytestoalloc, bytestoclear, bytespushed
 	dim as zstring ptr lprof
 
 	' No frame for naked functions
 	if( symbIsNaked( proc ) = FALSE ) then
 
-    	bytestoalloc = ((proc->proc.ext->stk.localmax - EMIT_LOCSTART) + 3) and (not 3)
+		bytestoalloc = hFrameBytesToAlloc( proc )
 
+		'' No locals/temps/padding or arguments?
     	if( (bytestoalloc <> 0) or _
     		(proc->proc.ext->stk.argofs <> EMIT_ARGSTART) or _
         	symbGetIsMainProc( proc ) or _
-        	env.clopt.debug or _
+			env.clopt.debuginfo or _
 			env.clopt.profile ) then
 
     		hPUSH( "ebp" )
     		outp( "mov ebp, esp" )
 
-        	if( symbGetIsMainProc( proc ) ) then
+			'' esp is now at -EMIT_ARGSTART modulo alignment if the caller correctly
+			'' aligned the stack; but don't make that assumption for main()
+			if( symbGetIsMainProc( proc ) ) then
 				outp( "and esp, 0xFFFFFFF0" )
-	    	end if
+				bytestoalloc += EMIT_ARGSTART
+			end if
 
     		if( bytestoalloc > 0 ) then
     			outp( "sub esp, " + str( bytestoalloc ) )
     		end if
+
     	end if
 
 		if( env.clopt.target = FB_COMPTARGET_DOS ) then
@@ -1112,7 +1167,7 @@ private sub hDestroyFrame _
 
     	dim as integer bytestoalloc
 
-    	bytestoalloc = ((proc->proc.ext->stk.localmax - EMIT_LOCSTART) + 3) and (not 3)
+    	bytestoalloc = hFrameBytesToAlloc( proc )
 
     	if( EMIT_REGISUSED( FB_DATACLASS_INTEGER, EMIT_REG_EDI ) ) then
     		hPOP( "edi" )
@@ -1127,7 +1182,7 @@ private sub hDestroyFrame _
     	if( (bytestoalloc <> 0) or _
     		(proc->proc.ext->stk.argofs <> EMIT_ARGSTART) or _
         	symbGetIsMainProc( proc ) or _
-        	env.clopt.debug or _
+			env.clopt.debuginfo or _
 			env.clopt.profile ) then
     		outp( "mov esp, ebp" )
     		hPOP( "ebp" )
@@ -1164,13 +1219,11 @@ private sub _emitJMPTB _
 		byval labels1 as FBSYMBOL ptr ptr, _
 		byval labelcount as integer, _
 		byval deflabel as FBSYMBOL ptr, _
-		byval minval as ulongint, _
-		byval maxval as ulongint _
+		byval bias as ulongint, _
+		byval span as ulongint _
 	)
 
-	dim as FBSYMBOL ptr label = any
 	dim as string deflabelname, tb
-	dim as integer i = any
 
 	deflabelname = *symbGetMangledName( deflabel )
 
@@ -1179,7 +1232,9 @@ private sub _emitJMPTB _
 	tb = *symbGetMangledName( tbsym )
 
 	''
-	'' Emit entries for each value from minval to maxval.
+	'' Emit entries for each value from 0 to span.
+	'' minval = bias
+	'' maxval = register(bias+span)
 	'' Each value that is in the values1 array uses the corresponding label
 	'' from the labels1 array; all other values use the default label.
 	''
@@ -1192,9 +1247,13 @@ private sub _emitJMPTB _
 	''
 
 	outEx( tb + ":" + NEWLINE )
-	i = 0
-	for value as ulongint = minval to maxval
+
+	var i = 0
+	var value = 0
+	do
 		assert( i < labelcount )
+
+		dim as FBSYMBOL ptr label
 		if( value = values1[i] ) then
 			label = labels1[i]
 			i += 1
@@ -1202,7 +1261,12 @@ private sub _emitJMPTB _
 			label = deflabel
 		end if
 		outp( *_getTypeString( FB_DATATYPE_UINT ) + " " + *symbGetMangledName( label ) )
-	next
+
+		if( value = span ) then
+			exit do
+		end if
+		value += 1
+	loop
 
 end sub
 
@@ -5986,10 +6050,11 @@ private sub _emitLINEINI _
 	( _
 		byval proc as FBSYMBOL ptr, _
 		byval lnum as integer, _
-		byval pos_ as integer _
+		byval pos_ as integer, _
+		byval filename As zstring ptr _
 	)
 
-	edbgLineBegin( proc, lnum, pos_ )
+	edbgLineBegin( proc, lnum, pos_, filename )
 
 end sub
 
@@ -6273,7 +6338,6 @@ private sub _emitLOADB2F( byval dvreg as IRVREG ptr, byval svreg as IRVREG ptr )
 
 		hPUSH aux
 		outp "fild dword ptr [esp]"
-		outp "fchs"
 		outp "add esp, 4"
 
 		if( isfree = FALSE ) then
@@ -6501,11 +6565,18 @@ end sub
 sub emitVARINIi( byval dtype as integer, byval value as longint )
 	dim s as string
 	s = *_getTypeString( dtype ) + " "
+
+	'' AST stores boolean true as -1, but we emit it as 1 for gcc compatibility
+	if( (dtype = FB_DATATYPE_BOOLEAN) and (value <> 0) ) then
+		value = 1
+	end if
+
 	if( ISLONGINT( dtype ) ) then
 		s += "0x" + hex( value )
 	else
 		s += str( value )
 	end if
+
 	s += NEWLINE
 	outEx( s )
 end sub

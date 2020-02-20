@@ -11,26 +11,36 @@ int fb_DevFileReadWstr( FB_FILE *handle, FB_WCHAR *dst, size_t *pchars )
     FB_LOCK();
 
     if( handle == NULL )
-    	fp = stdin;
+        fp = stdin;
     else
     {
-    	fp = (FILE*) handle->opaque;
-    	if( fp == stdout || fp == stderr )
-        	fp = stdin;
+        fp = (FILE*) handle->opaque;
+        if( fp == stdout || fp == stderr )
+            fp = stdin;
 
-		if( fp == NULL )
-		{
-			FB_UNLOCK();
-			return fb_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL );
-		}
-	}
+        if( fp == NULL )
+        {
+            FB_UNLOCK();
+            return fb_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL );
+        }
+    }
 
     chars = *pchars;
 
 	if( chars < FB_LOCALBUFF_MAXLEN )
+	{
 		buffer = alloca( chars + 1 );
+		/* note: if out of memory on alloca, it's a stack exception */
+	}
 	else
+	{
 		buffer = malloc( chars + 1 );
+		if( buffer == NULL )
+		{
+			FB_UNLOCK();
+			return fb_ErrorSetNum( FB_RTERROR_OUTOFMEM );
+		}
+	}
 
 	/* do read */
 	chars = fread( buffer, 1, chars, fp );

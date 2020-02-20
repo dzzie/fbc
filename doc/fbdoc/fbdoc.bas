@@ -1,5 +1,5 @@
 ''  fbdoc - FreeBASIC User's Manual Converter/Generator
-''	Copyright (C) 2006-2008 The FreeBASIC development team.
+''	Copyright (C) 2006-2019 The FreeBASIC development team.
 ''
 ''	This program is free software; you can redistribute it and/or modify
 ''	it under the terms of the GNU General Public License as published by
@@ -47,9 +47,10 @@
 using fb
 using fbdoc
 
-const ManualDir = "../manual/"
-const default_wiki_url = "http://www.freebasic.net/wiki/wikka.php"
-const default_CacheDir = ManualDir + "cache/"
+const default_ManualDir = "../manual/"
+const default_wiki_url = "https://www.freebasic.net/wiki/wikka.php"
+const default_ca_file = ""
+const default_CacheDir = default_ManualDir + "cache/"
 const default_TocPage = "DocToc"
 
 enum OUTPUT_FORMATS
@@ -70,6 +71,7 @@ end sub
 '' --------------------------------------------------------------------------
 
 	dim as integer CacheRefreshMode = CWikiCache.CACHE_REFRESH_IFMISSING
+	dim as string sManualDir = default_ManualDir
 	dim as string sCacheDir = default_CacheDir
 	dim as string sOutputDir = ""
 	dim as string sConnFile, sLangFile, sTocTitle, sDocToc, sTemplateDir
@@ -83,8 +85,8 @@ end sub
 
 	dim as string SinglePage = ""
 	dim as integer bSinglePage = FALSE
-	redim as string webPageList(1 to 10)
-	dim as integer webPageCount = 0, bWebPages = FALSE
+	redim as string pageList(1 to 10)
+	dim as integer pageCount = 0, bPages = FALSE
 
 	dim as string sTocPage = default_TocPage
 
@@ -128,22 +130,24 @@ end sub
 		print "   -makepage pagename"
 		print "                  process a single page (and links on page) only"
 		print "   -maketitles    generate titles.txt"
+		print "   -certificate file"
+		print "              certificate to use to authenticate server (.pem)"
 		print ""
 		end 1
 	end if
 
 	if( bShowVersion ) then
-		print "FreeBASIC User's Manual Converter/Generator - Version 0.1b"
-		print "Copyright (C) 2006-2008 The FreeBASIC development team."
+		print "FreeBASIC User's Manual Converter/Generator - Version 1.00"
+		print "Copyright (C) 2006-2019 The FreeBASIC development team."
 		end 1
 	end if
 
 	i = 1
 	while( len( command(i) ) > 0 )
 
-		if( bWebPages ) then
+		if( bPages ) then
 			if left( command(i), 1) = "-" then
-				bWebPages = FALSE
+				bPages = FALSE
 			else
 				if left( command(i), 1) = "@" then
 					scope
@@ -156,22 +160,22 @@ end sub
 								line input #h, x
 								x = trim(x, any " " + chr(9))
 								if( x > "" ) then 
-									webPageCount += 1
-									if( webPageCount > ubound(webPageList) ) then
-										redim preserve webPageList(1 to Ubound(webPageList) * 2)
+									pageCount += 1
+									if( pageCount > ubound(pageList) ) then
+										redim preserve pageList(1 to Ubound(pageList) * 2)
 									end if
-									webPageList(webPageCount) = x
+									pageList(pageCount) = x
 								end if
 							wend
 							close #h
 						end if
 					end scope
 				else
-					webPageCount += 1
-					if( webPageCount > ubound(webPageList) ) then
-						redim preserve webPageList(1 to Ubound(webPageList) * 2)
+					pageCount += 1
+					if( pageCount > ubound(pageList) ) then
+						redim preserve pageList(1 to Ubound(pageList) * 2)
 					end if
-					webPageList(webPageCount) = command(i)
+					pageList(pageCount) = command(i)
 				end if
 			end if
 		end if
@@ -184,7 +188,7 @@ end sub
 			end if
 		end if
 
-		if(( bWebPages = FALSE ) and ( bSinglePage = FALSE )) then
+		if(( bPages = FALSE ) and ( bSinglePage = FALSE )) then
 
 			select case lcase(command(i))
 			case "-makeini"
@@ -210,7 +214,7 @@ end sub
 			case "-texinfo"
 				bEmitFormats or= OUT_TEXINFO
 			case "-getpage"
-				bWebPages = TRUE
+				bPages = TRUE
 			case "-makepage"
 				bSinglePage = TRUE
 			case "-noscan"
@@ -258,8 +262,10 @@ end sub
 		else
 			if( open( sConnFile for output as #h ) = 0 ) then
 				print #h, "[Wiki Connection]"
-				print #h, "wiki_url = http://www.freebasic.net/wiki/wikka.php"
+				print #h, "wiki_url = https://www.freebasic.net/wiki/wikka.php"
 				print #h,
+				print #h, "[dirs]"
+				print #h, "manual_dir = ./"
 
 				print #h, "[MySql Connection]"
 				print #h, "db_host = localhost"
@@ -285,8 +291,11 @@ end sub
 		end 1
 	end if
 
+	'' if 'manual_dir' exists in the options, let it override any default set
+	sManualDir = connopts->Get( "manual_dir", sManualDir )
+
 	'' Load language options
-	sLangFile = ManualDir + "templates/default/lang/en/common.ini"
+	sLangFile = sManualDir + "templates/default/lang/en/common.ini"
 	if( Lang.LoadOptions( sLangFile ) = FALSE ) then
 		print "Unable to load language file '" + sLangFile + "'"
 		end 1
@@ -305,7 +314,7 @@ end sub
 	end if
 
 	'' Initialize the wiki connection - in case its needed
-	Connection_SetUrl( connopts->Get( "wiki_url", default_wiki_url) )
+	Connection_SetUrl( connopts->Get( "wiki_url", default_wiki_url ), connopts->Get( "certificate", default_ca_file ) )
 
 #if defined(HAVE_MYSQL)
 	'' If using SQL, get all the pages in to the cache now.
@@ -329,11 +338,11 @@ end sub
 	
 	dim as CPageList ptr paglist, toclist, lnklist
 
-	if( webPageCount > 0 ) then
+	if( pageCount > 0 ) then
 		dim as integer i
 		dim as string ret
-		for i = 1 to webPageCount
-			ret = LoadPage( webPageList(i), FALSE, TRUE )
+		for i = 1 to pageCount
+			ret = LoadPage( pageList(i), FALSE, TRUE )
 		next
 		end 0
 	end if
@@ -358,9 +367,9 @@ end sub
 	end if
 
 	'' Load Keywords
-	fbdoc_loadkeywords( ManualDir + "templates/default/keywords.lst" )
+	fbdoc_loadkeywords( sManualDir + "templates/default/keywords.lst" )
 
-	if( bMakeTitles = TRUE ) then
+	if( bMakeTitles ) then
 		'misc_dump_keypageslist( paglist, "keypages.txt" )
 		misc_dump_titles( paglist, "titles.txt" )
 	end if
@@ -375,8 +384,8 @@ end sub
 	if( ( bEmitFormats and OUT_CHM ) <> 0 )then
 
 		'' Generate CHM
-		sOutputDir = ManualDir + "html/"
-		sTemplateDir = ManualDir + "templates/default/code/"
+		sOutputDir = sManualDir + "html/"
+		sTemplateDir = sManualDir + "templates/default/code/"
 
 		hMkdir( sOutputDir )
 
@@ -398,8 +407,8 @@ end sub
 	if( ( bEmitFormats and OUT_FBHELP ) <> 0 )then
 
 		'' Generate fbhelp output for fbhelp console viewer
-		sOutputDir = ManualDir + "fbhelp/"
-		sTemplateDir = ManualDir + "templates/default/code/"
+		sOutputDir = sManualDir + "fbhelp/"
+		sTemplateDir = sManualDir + "templates/default/code/"
 
 		hMkdir( sOutputDir )
 
@@ -416,8 +425,8 @@ end sub
 	if( ( bEmitFormats and OUT_TXT ) <> 0 )then
 
 		'' Generate ascii Txt output for single txt file
-		sOutputDir = ManualDir + "txt/"
-		sTemplateDir = ManualDir + "templates/default/code/"
+		sOutputDir = sManualDir + "txt/"
+		sTemplateDir = sManualDir + "templates/default/code/"
 
 		hMkdir( sOutputDir )
 
@@ -434,8 +443,8 @@ end sub
 	if( ( bEmitFormats and OUT_TEXINFO ) <> 0 )then
 
 		'' Generate ascii Txt output for single txt file
-		sOutputDir = ManualDir + "texinfo/"
-		sTemplateDir = ManualDir + "templates/default/code/"
+		sOutputDir = sManualDir + "texinfo/"
+		sTemplateDir = sManualDir + "templates/default/code/"
 
 		hMkdir( sOutputDir )
 

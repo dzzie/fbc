@@ -18,6 +18,8 @@
 		[[KeyPgDdFBBackend|__FB_BACKEND__]]
 		[[KeyPgDdFBBigEndian|__FB_BIGENDIAN__]]
 		[[KeyPgDdFBBuildDate|__FB_BUILD_DATE__]]
+		[[KeyPgDdfbbuilddateiso|__FB_BUILD_DATE_ISO__]]
+		[[KeyPgDdfbbuildsha1|__FB_BUILD_SHA1__]]
 		[[KeyPgDdfbcygwin|__FB_CYGWIN__]]
 		[[KeyPgDdfbdarwin|__FB_DARWIN__]]
 		[[KeyPgDdfbdebug|__FB_DEBUG__]]
@@ -27,6 +29,7 @@
 		[[KeyPgDdfbfpu|__FB_FPU__]]
 		[[KeyPgDdfbfreebsd|__FB_FREEBSD__]]
 		[[KeyPgDdfbgcc|__FB_GCC__]]
+		[[KeyPgDdfbgui|__FB_GUI__]]
 		[[KeyPgDdfblang|__FB_LANG__]]
 		[[KeyPgDdfblinux|__FB_LINUX__]]
 		[[KeyPgDdFBMain|__FB_MAIN__]]
@@ -87,8 +90,13 @@
 	{{fbdoc item="subsect" value="$"}}
 		[[KeyPgMetaDynamic|$DYNAMIC]]
 		[[KeyPgMetaInclude|$INCLUDE]]
-		[[KeyPgMetaStatic|$STATIC]]
 		[[KeyPgMetaLang|$LANG]]
+		[[KeyPgMetaStatic|$STATIC]]
+
+	{{fbdoc item="subsect" value="?"}}
+		[[KeyPgPrint|? (Shortcut for 'PRINT')]]
+		[[KeyPgPrintPp|? # (Shortcut for 'PRINT #')]]
+		[[KeyPgPrintusing|? USING (Shortcut for 'PRINT USING')]]
 
 	{{fbdoc item="subsect" value="A"}}
 		[[KeyPgAbs|ABS]]
@@ -96,7 +104,8 @@
 		[[KeyPgAccess|ACCESS]]
 		[[KeyPgAcos|ACOS]]
 		[[KeyPgAddGfx|ADD (Graphics PUT)]]
-		[[KeyPgAlias|ALIAS]]
+		[[KeyPgAlias|ALIAS (Name)]]
+		[[KeyPgAliasModifier|ALIAS (Modifier)]]
 		[[KeyPgAllocate|ALLOCATE]]
 		[[KeyPgAlphaGfx|ALPHA (Graphics PUT)]]
 		[[KeyPgOpAnd|AND]]
@@ -105,11 +114,11 @@
 		[[KeyPgAny|ANY]]
 		[[KeyPgAppend|APPEND]]
 		[[KeyPgAs|AS]]
-		[[KeyPgAssert|ASSERT]]
-		[[KeyPgAssertwarn|ASSERTWARN]]
 		[[KeyPgAsc|ASC]]
 		[[KeyPgAsin|ASIN]]
 		[[KeyPgAsm|ASM]]
+		[[KeyPgAssert|ASSERT]]
+		[[KeyPgAssertwarn|ASSERTWARN]]
 		[[KeyPgAtan2|ATAN2]]
 		[[KeyPgAtn|ATN]]
 
@@ -127,6 +136,7 @@
 		[[KeyPgBsave|BSAVE]]
 		[[KeyPgByref|BYREF (parameters)]]
 		[[KeyPgByrefFunction|BYREF (function results)]]
+		[[KeyPgByrefVariables|BYREF (variables)]]
 		[[KeyPgByte|BYTE]]
 		[[KeyPgByval|BYVAL]]
 
@@ -178,6 +188,11 @@
 		[[KeyPgCurdir|CURDIR]]
 		[[KeyPgCushort|CUSHORT]]
 		[[KeyPgCustomgfx|CUSTOM (Graphics PUT)]]
+		[[KeyPgCvaArg|CVA_ARG]]
+		[[KeyPgCvaCopy|CVA_COPY]]
+		[[KeyPgCvaEnd|CVA_END]]
+		[[KeyPgCvaList|CVA_LIST]]
+		[[KeyPgCvaStart|CVA_START]]
 		[[KeyPgCvd|CVD]]
 		[[KeyPgCvi|CVI]]
 		[[KeyPgCvl|CVL]]
@@ -209,7 +224,7 @@
 		[[KeyPgDefuint|DEFUINT]]
 		[[KeyPgDefulongint|DEFULONGINT]]
 		[[KeyPgDefushort|DEFUSHORT]]
-		[[KeyPgOpDelete|DELETE]]
+		[[KeyPgOpDelete|DELETE (Statement)]]
 		[[KeyPgDestructor|DESTRUCTOR]]
 		[[KeyPgModuleDestructor|DESTRUCTOR (Module)]]
 		[[KeyPgDim|DIM]]
@@ -248,6 +263,8 @@
 		[[KeyPgExp|EXP]]
 		[[KeyPgExport|EXPORT]]
 		[[KeyPgExtends|EXTENDS]]
+		[[KeyPgExtendsWstring|EXTENDS WSTRING]]
+		[[KeyPgExtendsZstring|EXTENDS ZSTRING]]
 		[[KeyPgExtern|EXTERN]]
 		[[KeyPgExternBlock|EXTERN...END EXTERN]]
 
@@ -258,7 +275,9 @@
 		[[KeyPgFilecopy|FILECOPY]]
 		[[KeyPgFiledatetime|FILEDATETIME]]
 		[[KeyPgFileexists|FILEEXISTS]]
+		[[KeyPgFileflush|FILEFLUSH]]
 		[[KeyPgFilelen|FILELEN]]
+		[[KeyPgFileseteof|FILESETEOF]]
 		[[KeyPgFix|FIX]]
 		[[KeyPgFlip|FLIP]]
 		[[KeyPgFor|FOR]]
@@ -269,6 +288,7 @@
 		[[KeyPgFreefile|FREEFILE]]
 		[[KeyPgFunction|FUNCTION]]
 		[[KeyPgMemberFunction|FUNCTION (Member)]]
+		[[KeyPgFunctionPtr|FUNCTION (Pointer)]]
 
 	{{fbdoc item="subsect" value="G"}}
 		[[KeyPgGetgraphics|GET (Graphics)]]
@@ -363,9 +383,9 @@
 		[[KeyPgNaked|NAKED]]
 		[[KeyPgName|NAME]]
 		[[KeyPgNamespace|NAMESPACE]]
-		[[KeyPgNext|NEXT]]
-		[[KeyPgOpNew|NEW]]
+		[[KeyPgOpNew|NEW (Expression)]]
 		[[KeyPgOpPlacementNew|NEW (Placement)]]
+		[[KeyPgNext|NEXT]]
 		[[KeyPgResumenext|NEXT (RESUME)]]
 		[[KeyPgOpNot|NOT]]
 		[[KeyPgNow|NOW]]
@@ -414,17 +434,14 @@
 		[[KeyPgPmap|PMAP]]
 		[[KeyPgPoint|POINT]]
 		[[KeyPgPointCoord|POINTCOORD]]
-		[[KeyPgPointer|POINTER]]
+		[[KeyPgPtr|POINTER]]
 		[[KeyPgPoke|POKE]]
 		[[KeyPgPos|POS]]
 		[[KeyPgPreserve|PRESERVE]]
 		[[KeyPgPreset|PRESET]]
 		[[KeyPgPrint|PRINT]]
-		[[KeyPgPrint|?]]
 		[[KeyPgPrintPp|PRINT #]]
-		[[KeyPgPrintPp|? #]]
 		[[KeyPgPrintusing|PRINT USING]]
-		[[KeyPgPrintusing|? USING]]
 		[[KeyPgPrivate|PRIVATE]]
 		[[KeyPgVisPrivate|PRIVATE: (Access Control)]]
 		[[KeyPgOpProcptr|PROCPTR]]
@@ -432,7 +449,7 @@
 		[[KeyPgVisProtected|PROTECTED: (Access Control)]]
 		[[KeyPgPset|PSET (Statement)]]
 		[[KeyPgPsetGfx|PSET (Graphics PUT)]]
-		[[KeyPgPtr|PTR]]
+		[[KeyPgPtr|PTR (Shortcut for 'POINTER')]]
 		[[KeyPgPublic|PUBLIC]]
 		[[KeyPgVisPublic|PUBLIC: (Access Control)]]
 		[[KeyPgPutgraphics|PUT (Graphics)]]
@@ -469,8 +486,8 @@
 		[[KeyPgScreencopy|SCREENCOPY]]
 		[[KeyPgScreencontrol|SCREENCONTROL]]
 		[[KeyPgScreenevent|SCREENEVENT]]
-		[[KeyPgScreeninfo|SCREENINFO]]
 		[[KeyPgScreenglproc|SCREENGLPROC]]
+		[[KeyPgScreeninfo|SCREENINFO]]
 		[[KeyPgScreenlist|SCREENLIST]]
 		[[KeyPgScreenlock|SCREENLOCK]]
 		[[KeyPgScreenptr|SCREENPTR]]
@@ -490,8 +507,8 @@
 		[[KeyPgShared|SHARED]]
 		[[KeyPgShell|SHELL]]
 		[[KeyPgOpShiftLeft|SHL]]
-		[[KeyPgOpShiftRight|SHR]]
 		[[KeyPgShort|SHORT]]
+		[[KeyPgOpShiftRight|SHR]]
 		[[KeyPgSin|SIN]]
 		[[KeyPgSingle|SINGLE]]
 		[[KeyPgSizeof|SIZEOF]]
@@ -512,6 +529,7 @@
 		[[KeyPgOpStrptr|STRPTR]]
 		[[KeyPgSub|SUB]]
 		[[KeyPgMemberSub|SUB (Member)]]
+		[[KeyPgSubPtr|SUB (Pointer)]]
 		[[KeyPgSwap|SWAP]]
 		[[KeyPgSystem|SYSTEM]]
 
@@ -525,9 +543,9 @@
 		[[KeyPgThreadDetach|THREADDETACH]]
 		[[KeyPgThreadWait|THREADWAIT]]
 		[[KeyPgTime|TIME]]
+		[[KeyPgTimer|TIMER]]
 		[[KeyPgTimeserial|TIMESERIAL]]
 		[[KeyPgTimeValue|TIMEVALUE]]
-		[[KeyPgTimer|TIMER]]
 		[[KeyPgTo|TO]]
 		[[KeyPgTransGfx|TRANS (Graphics PUT)]]
 		[[KeyPgTrim|TRIM]]
@@ -600,7 +618,7 @@
 
 	{{fbdoc item="subsect" value="Z"}}
 		[[KeyPgZstring|ZSTRING]]
-	[[CatPgOpIndex|Operators List]]
+	[[CatPgOpIndex|Operator List]]
 
 	{{fbdoc item="subsect" value="Variables and Data Types"}}
 		[[CatPgVariables|Variable Declarations]]
@@ -691,9 +709,11 @@
 		[[KeyPgOpIs|Operator Is (Run-time type information)]]
 
 	{{fbdoc item="subsect" value="Memory operators"}}
-		[[KeyPgOpNew|Operator New]]
+		[[KeyPgOpNew|Operator New Expression]]
+		[[KeyPgOpNewOverload|Operator New Overload]]
 		[[KeyPgOpPlacementNew|Operator Placement New]]
-		[[KeyPgOpDelete|Operator Delete]]
+		[[KeyPgOpDelete|Operator Delete Statement]]
+		[[KeyPgOpDeleteOverload|Operator Delete Overload]]
 
 	{{fbdoc item="subsect" value="Iterating operators"}}
 		[[KeyPgOpFor|Operator For]]
@@ -756,6 +776,9 @@
 		[[ProPgLineContinuation|Line continuation]]
 
 	{{fbdoc item="subsect" value="Variables and Datatypes"}}
+		[[ProPgEnumerations|Constants and Enumerations]]
+		[[ProPgNumericTypes|Numeric Types]]
+		[[ProPgStringsTypes|Strings (string, zstring, and wstring)]]
 		[[ProPgDataConversion|Coercion and Conversion]]
 		[[ProPgConstants|Constants]]
 		[[ProPgVariables|Variables]]
@@ -765,30 +788,45 @@
 			[[ProPgFixLenArrays|Fixed-length Arrays]]
 			[[ProPgVarLenArrays|Variable-length Arrays]]
 			[[ProPgArrayIndex|Array Indexing]]
+			[[ProPgPassingArrays|Passing Arrays to Procedures]]
 
 		{{fbdoc item="subsect" value="Pointers"}}
 			[[ProPgPointers|Overview]]
 			[[ProPgPtrArithmetic|Pointer Arithmetic]]
+
+		{{fbdoc item="subsect" value="References"}}
+			[[ProPgFromPtrToRef|From Pointers to References]]
+			[[ProPgReferences|Using References]]
 
 	{{fbdoc item="subsect" value="Declarations"}}
 		[[ProPgImplicitdeclarations|Implicit Declarations]]
 		[[ProPgInitialization|Initialization]]
 		[[ProPgStorageClasses|Storage Classes]]
 		[[ProPgVariableScope|Variable Scope]]
+		[[ProPgVariableLifetime|Simple Variable Lifetime vs Scope]]
+		[[ProPgObjectLifetime|Dynamic Object and Data Lifetime]]
+		[[ProPgNamespaces|Namespaces]]
 		[[ProPgVarProcLinkage|Variable and Procedure Linkage]]
 
 	{{fbdoc item="subsect" value="User Defined Types"}}
 		[[ProPgUDTs|Overview]]
 		[[ProPgTypeAliases|Type Aliases]]
 		[[KeyPgTypeTemp|Temporary Types]]
-		[[ProPgCtorsDtors|Constructors and Destructors]]
+		[[ProPgCtorsDtors|Constructors and Destructors (basics)]]
 		[[ProPgMemberProcedures|Member Procedures]]
 		[[ProPgProperties|Properties]]
 		[[ProPgMemberAccessRights|Member Access Rights]]
 		[[ProPgOperatorOverloading|Operator Overloading]]
+		[[ProPgTypeIterators|Iterators]]
+		[[ProPgNewDelete|New and Delete]]
 		[[ProPgTypeObjects|Types as Objects]]
+		[[ProPgCompoAggregInherit|Composition, Aggregation, Inheritance]]
+		[[ProPgPolymorphism|Inheritance Polymorphism]]
+		[[ProPgCtorsAssignDtors|Constructors, '=' Assignment-Operators, and Destructors (advanced, part #1)]]
+		[[ProPgCtorsAssignDtors2|Constructors, '=' Assignment-Operators, and Destructors (advanced, part #2)]]
 
 	{{fbdoc item="subsect" value="Statements and Expressions"}}
+		[[ProPgAssignments|Assignments]]
 		[[OpPrecedence|Operator Precedence]]
 		[[ProPgControlFlow|Control Flow Statements]]
 
@@ -796,9 +834,25 @@
 		[[ProPgProcedures|Procedures Overview]]
 		[[ProPgPassingArguments|Passing Arguments to Procedures]]
 		[[ProPgReturnValue|Returning a Value]]
+		[[ProPgProcedureScopes|Procedure Scopes]]
 		[[ProPgCallingConventions|Calling Conventions]]
+		[[ProPgRecursion|Recursion]]
+		[[ProPgProcCtorsDtors|Constructors and Destructors]]
 		[[ProPgProcedurePointers|Pointers to Procedures]]
 		[[CatPgVarArg|Variable Arguments]]
+
+	{{fbdoc item="subsect" value="Graphics"}}
+		[[GfxLib|FreeBASIC GfxLib overview]]
+		[[ProPgAntiFlickering|Graphics Mode Refresh and Anti-Flickering]]
+		[[GfxInternalFormats|Internal Graphics Formats]]
+
+	{{fbdoc item="subsect" value="Multi-Threading"}}
+		[[ProPgMultiThreading|Overview]]
+		[[ProPgMtThreads|Threads]]
+		[[ProPgMtMutualExclusion|Mutual Exclusion]]
+		[[ProPgMtConditionalVariables|Conditional Variables]]
+		[[ProPgMtCriticalSections|Critical Sections]]
+		[[ProPgMtCriticalSectionsFAQ|Critical Sections FAQ]]
 
 	{{fbdoc item="subsect" value="Making Binaries"}}
 		[[ProPgStaticLibraries|Static Libraries]]
@@ -806,13 +860,14 @@
 		[[ProPgProfiling|Profiling]]
 
 	{{fbdoc item="subsect" value="Preprocessor"}}
+		[[ProPgPreprocessor|Overview]]
+		[[ProPgConditionalCompilation|Conditional Compilation]]
+		[[ProPgMacros|Macros]]
 
 	{{fbdoc item="subsect" value="Other Topics"}}
 		[[CptAscii|ASCII]]
 		[[ProPgDates|Date Serials]]
 		[[ProPgRadians|Radians]]
-		[[GfxLib|FreeBASIC GfxLib overview]]
-		[[GfxInternalFormats|Internal Graphics Formats]]
 		[[KeyPgAsm|Inline ASM]]
 		[[ProPgErrorHandling|Error Handling]]
 		[[CatPgDddefines|Intrinsic Defines]]
@@ -935,8 +990,6 @@
 		[[ExtLibwindows|Windows API]]
 		[[ExtLibX11|X11]]
 
-	{{fbdoc item="subsect" value="User Contributed Libraries"}}
-
 {{fbdoc item="section" value="Using the FreeBASIC compiler"}}
 	[[CompilerInstalling|Installing FreeBASIC]]
 	[[CompilerRequirements|Requirements]]
@@ -955,6 +1008,12 @@
 		[[CompilerOptdll|-dll]]
 		[[CompilerOptdylib|-dylib]]
 		[[CompilerOpte|-e]]
+		[[CompilerOptearray|-earray]]
+		[[CompilerOpteassert|-eassert]]
+		[[CompilerOptedebug|-edebug]]
+		[[CompilerOptedebuginfo|-edebuginfo]]
+		[[CompilerOptelocation|-elocation]]
+		[[CompilerOptenullptr|-enullptr]]
 		[[CompilerOptex|-ex]]
 		[[CompilerOptexx|-exx]]
 		[[CompilerOptexport|-export]]
@@ -974,6 +1033,8 @@
 		[[CompilerOptmt|-mt]]
 		[[CompilerOptnodeflibs|-nodeflibs]]
 		[[CompilerOptnoerrline|-noerrline]]
+		[[CompilerOptnoobjinfo|-noobjinfo]]
+		[[CompilerOptnostrip|-nostrip]]
 		[[CompilerOpto|-o < name >]]
 		[[CompilerOptoptimization|-O < level >]]
 		[[CompilerOptp|-p < name >]]
@@ -989,8 +1050,9 @@
 		[[CompilerOpts|-s < name >]]
 		[[CompilerOptshowincludes|-showincludes]]
 		[[CompilerOptstatic|-static]]
-		[[CompilerOpttarget|-target < platform >]]
+		[[CompilerOptstrip|-strip]]
 		[[CompilerOptt|-t < value >]]
+		[[CompilerOpttarget|-target < platform >]]
 		[[CompilerOptv|-v]]
 		[[CompilerOptvec|-vec < level >]]
 		[[CompilerOptversion|-version]]
@@ -1003,6 +1065,7 @@
 	[[DebuggerRunning|Debugging with FreeBASIC]]
 	[[CompilerErrMsg|Compiler Error Messages]]
 	[[CompilerTools|Tools used by fbc]]
+	[[CompilerInstallingGcc|Installing gcc for -gen gcc]]
 
 {{fbdoc item="section" value="FreeBASIC dialects and QBASIC"}}
 	[[CompilerQB|FreeBASIC and Qbasic]]

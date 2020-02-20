@@ -2,10 +2,10 @@
 
 '' simple
 
-extern "c++" lib "cpp"
+extern "c++"
 	namespace cpp
-		declare function sum( byval a as integer, byval b as integer ) as integer
-		declare function dec( byval a as integer, byval b as integer ) as integer
+		declare function sum( byval a as long, byval b as long ) as long
+		declare function dec( byval a as long, byval b as long ) as long
 	end namespace
 end extern
 
@@ -15,10 +15,10 @@ end extern
 
 '' nested
 
-extern "c++" lib "cpp"
+extern "c++"
 	namespace cpp.foo.bar
-		declare function sum( byval a as integer, byval b as integer ) as integer
-		declare function dec( byval a as integer, byval b as integer ) as integer
+		declare function sum( byval a as long, byval b as long ) as long
+		declare function dec( byval a as long, byval b as long ) as long
 	end namespace
 end extern
 
@@ -28,14 +28,14 @@ end extern
 
 '' nested + udts
 
-extern "c++" lib "cpp"
+extern "c++"
 	namespace cpp.foo.bar
 		type udt
-			v as integer
+			v as long
 		end type
 	
-		declare function sum_udt( byval a as udt ptr, byval b as udt ptr ) as integer
-		declare function dec_udt( byval a as udt ptr, byval b as udt ptr ) as integer
+		declare function sum_udt( byval a as udt ptr, byval b as udt ptr ) as long
+		declare function dec_udt( byval a as udt ptr, byval b as udt ptr ) as long
 	end namespace
 end extern
 
@@ -44,27 +44,27 @@ end extern
 
 '' nested + func ptr
 
-extern "c++" lib "cpp"
+extern "c++"
 	namespace cpp.foo.bar
 		type baz
-			v1 as integer
-			v2 as integer
+			v1 as long
+			v2 as long
 		end type
 	
 		declare function sum_fn( byval baz as baz ptr, _
-								 byval a as function cdecl(byval as baz ptr) as integer, _
-								 byval b as function cdecl(byval as baz ptr) as integer ) as integer
+								 byval a as function cdecl(byval as baz ptr) as long, _
+								 byval b as function cdecl(byval as baz ptr) as long ) as long
 		declare function dec_fn( byval baz as baz ptr, _
-								 byval a as function cdecl(byval as baz ptr) as integer, _
-								 byval b as function cdecl(byval as baz ptr) as integer ) as integer
+								 byval a as function cdecl(byval as baz ptr) as long, _
+								 byval b as function cdecl(byval as baz ptr) as long ) as long
 	end namespace
 end extern
 
-private function fun_v1 cdecl( byval baz as cpp.foo.bar.baz ptr) as integer
+private function fun_v1 cdecl( byval baz as cpp.foo.bar.baz ptr) as long
 	function = baz->v1
 end function
 
-private function fun_v2 cdecl ( byval baz as cpp.foo.bar.baz ptr) as integer
+private function fun_v2 cdecl ( byval baz as cpp.foo.bar.baz ptr) as long
 	function = baz->v2
 end function
 

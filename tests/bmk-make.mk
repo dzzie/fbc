@@ -5,7 +5,7 @@
 # and testing run-time assertions
 #
 # expected usage
-# make -f bmk-make.mk [clean] { BMK=? | FILE=? } TEST_MODE=? [ALLOW_CUNIT=0|1]
+# make -f bmk-make.mk [clean] { BMK=? | FILE=? } TEST_MODE=?
 #   clean
 #       clean files
 #   BMK=/path/filename.bmk
@@ -28,6 +28,7 @@ SHELL := $(SHELL)
 endif
 ECHO := echo
 
+CC := gcc
 ifndef FBC
 FBC := fbc$(EXEEXT)
 endif
@@ -57,6 +58,16 @@ ifneq ($(FB_LANG),)
 FBC_CFLAGS += -lang $(FB_LANG)
 endif
 
+ifneq ($(ARCH),)
+FBC_CFLAGS += -arch $(ARCH)
+FBC_LFLAGS += -arch $(ARCH)
+endif
+
+ifneq ($(TARGET),)
+FBC_CFLAGS += -target $(TARGET)
+FBC_LFLAGS += -target $(TARGET)
+endif
+
 ifneq ($(FPU),)
 FBC_CFLAGS += -fpu $(FPU)
 endif
@@ -65,15 +76,36 @@ ifneq ($(GEN),)
 FBC_CFLAGS += -gen $(GEN)
 endif
 
+TARGET_ARCH := $(shell $(FBC) $(FBC_CFLAGS) -print target | cut -d - -f 2)
+ifeq ($(TARGET_ARCH),x86)
+	CFLAGS := -m32
+endif
+ifeq ($(TARGET_ARCH),x86_64)
+	CFLAGS := -m64
+endif
+
+ifeq ($(ENABLE_CHECK_BUGS),1)
+	FBC_CFLAGS += -d ENABLE_CHECK_BUGS=$(ENABLE_CHECK_BUGS)
+endif
+ifeq ($(ENABLE_CONSOLE_OUTPUT),1)
+	FBC_CFLAGS += -d ENABLE_CONSOLE_OUTPUT=$(ENABLE_CONSOLE_OUTPUT)
+endif
+
+# The default target has to appear before "include $(BMK)", which might
+# define other targets.
+all : $(RUN_TEST)
+
 MAINX :=
 SRCSX :=
+EXTRA_OBJSX :=
 
 ifneq ($(BMK),)
 
-include $(BMK)
 SRCDIR := $(dir $(BMK))
+include $(BMK)
 MAINX := $(addprefix $(SRCDIR),$(MAIN))
 SRCSX := $(MAINX) $(addprefix $(SRCDIR),$(SRCS))
+EXTRA_OBJSX := $(addprefix $(SRCDIR),$(EXTRA_OBJS))
 
 else
 
@@ -84,7 +116,7 @@ SRCSX := $(FILE)
 endif
 
 MAIN_MODULE := $(basename $(MAINX))
-APP := $(MAIN_MODULE)$(EXEEXT)
+APP := $(MAIN_MODULE)$(TARGET_EXEEXT)
 
 ifeq ($(MAIN_MODULE),)
 $(error main module not specified)
@@ -93,19 +125,13 @@ endif
 FBC_CFLAGS += -g -w 0 
 FBC_LFLAGS += -g
 
-ifeq ($(ALLOW_CUNIT),1)
-FBC_CFLAGS += -i fbcu/fake
-endif
-
 OBJS := $(addsuffix .o,$(basename $(SRCSX)))
-
-all : $(RUN_TEST)
 
 $(OBJS) : %.o : %.bas
 	$(FBC) $(FBC_CFLAGS) -m $(MAIN_MODULE) -c $< -o $@
 
-$(APP) : $(OBJS)
-	$(FBC) $(FBC_LFLAGS) $(OBJS) -x $(APP)
+$(APP) : $(OBJS) $(EXTRA_OBJSX)
+	$(FBC) $(FBC_LFLAGS) $(OBJS) $(EXTRA_OBJSX) -x $(APP)
 
 run_test_ok : $(APP)
 	@if $(APP) ; then true ; else false ; fi
@@ -116,4 +142,4 @@ run_test_fail : $(APP)
 .PHONY : clean
 clean:
 	@$(ECHO) Cleaning $(SRCDIR)$(MAIN_MODULE) files ...
-	@$(RM) $(OBJS) $(APP)
+	@$(RM) $(OBJS) $(EXTRA_OBJSX) $(APP)

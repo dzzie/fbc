@@ -10,7 +10,7 @@ Declares a variable
 		##**Dim** //name// ( [//lbound// [[KeyPgTo|To]]] //ubound// [, ...] ) As [[DataType|DataType]]##
 		##**Dim** //name// ( [[KeyPgAny|Any]] [, [[KeyPgAny|Any]]...] ) As [[DataType|DataType]]##
 		##**Dim** //name// ( ) As [[DataType|DataType]]##
-
+	
 	Initializers:
 		##**Dim** //scalar_symbol// As [[DataType|DataType]] = //expression// | [[KeyPgAny|Any]]##
 		##**Dim** //array_symbol// (//arraybounds//) As [[DataType|DataType]] = { //expression// [, ...] } | [[KeyPgAny|Any]]##
@@ -52,16 +52,15 @@ dim px as double ptr = @x
 
 '$lang: "qb"
 
-'' All variables beginning with A through N default to the INTEGER data type
-'' All other variables will default to the SINGLE data type
+'' All variables beginning with A through N will default to the INTEGER data type
+'' All other variables default to the SINGLE data type
 DefInt I-N
 
+Dim I, J, X, Y, T$, D As Double
 '' I and J are INTEGERs
 '' X and Y are SINGLEs
 '' T$ is STRING
 '' D is DOUBLE
-
-Dim I, J, X, Y, T$, D As Double
 %%
 
 {{fbdoc item="section" value="Arrays"}}
@@ -90,7 +89,7 @@ Dim array(1 To 2, 6, 3 To 5) As Single
 
 	For more information on arrays see [[ProPgArrays|Arrays Overview]].
 	
-	If the values used  with ##**Dim**## to declare the dimensions of an array are all constants, the array will be created ##[[KeyPgOptionstatic|Static]]## (unless ##[[KeyPgOptiondynamic|Option Dynamic]]## is specified), while using one or more variables to declare the dimensions of an array makes it variable length, even if ##[[KeyPgOptionstatic|Option Static]]## is in effect.
+	If the values used  with ##**Dim**## to declare the dimensions of an array are all constants, the array will be created fixed length (of ##[[KeyPgOptionstatic|Static]]## size, unless ##[[KeyPgOptiondynamic|Option Dynamic]]## is specified), while using one or more variables to declare the dimensions of an array makes it variable length, even if ##[[KeyPgOptionstatic|Option Static]]## is in effect.
 	
 	Arrays can be declared as variable length in several ways: Using ##**Dim**## with an empty set of indexes (##**Dim** x()##), using ##**Dim**## with indexes that are variables or using the keyword ##[[KeyPgRedim|Redim]]##, or using ##[[KeyPgAny|Any]]## in place of the array bounds, or declaring it past the metacommand ##[[KeyPgMetaDynamic|$Dynamic]]##. Variable length arrays can't use initializers.
 	
@@ -102,12 +101,12 @@ Dim array(1 To 2, 6, 3 To 5) As Single
 
 {{fbdoc item="section" value="Initializers"}}
 	Arrays, variables, strings, and user defined types (UDTs) are initialized to zero (or ##[[KeyPgFalse|False]]## for ##[[KeyPgBoolean|Boolean]]##) or null strings by default when they are created.
-
+	
 	To avoid the overhead of default variable initialization, the ##**Any**## initializer can be used with ##**Dim**## to tell the compiler to only reserve the place for the variable in memory but not initialize it, so the variable will contain garbage. In this case the programmer should not make assumptions about the initial values.
 	
 	Fixed-length arrays, variables, zstrings and UDTs may be given a value at the time of their declaration by following the variable declaration with an initializer.  Note the difference between initializing different types. Arrays, variables and UDTs are initialized as they would in a normal assignment, using an equal ( ##=## ) sign.  The ##=>## sign can be used, allowing to avoid the declaration resembling an expression when declaring fixed length strings.
 	
-	 Array values are given in comma-delimited values enclosed by curly brackets, and UDT values are given in comma delimited values enclosed by parenthesis.  These methods of initializing variables can be nested within one another for complex assignments. Nesting allows for arrays of any dimension to be initialized.
+	Array values are given in comma-delimited values enclosed by curly brackets, and UDT values are given in comma delimited values enclosed by parenthesis.  These methods of initializing variables can be nested within one another for complex assignments. Nesting allows for arrays of any dimension to be initialized.
 
 {{fbdoc item="filename" value="examples/manual/check/KeyPgDim_5.bas"}}%%(freebasic)
 '' Declare an array of 2 by 5 elements
@@ -217,9 +216,12 @@ Deallocate(s3)
 	- ##[[KeyPgPreserve|Preserve]]##
 	- ##[[KeyPgShared|Shared]]##
 	- ##[[KeyPgStatic|Static]]##
+	- ##[[KeyPgByrefVariables|Byref (variables)]]##
 	- ##[[KeyPgErase|Erase]]##
 	- ##[[KeyPgLbound|LBound]]##
 	- ##[[KeyPgUbound|UBound]]##
 	- ##[[KeyPgDots|... (Ellipsis)]]##
 	- ##[[KeyPgAny|Any]]##
+	- [[ProPgProcedurePointers|Pointers to Procedures]]
+
 {{fbdoc item="back" value="CatPgVariables|Variable Declarations"}}

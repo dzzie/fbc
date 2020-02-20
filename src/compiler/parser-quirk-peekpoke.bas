@@ -7,6 +7,7 @@
 #include once "fbint.bi"
 #include once "parser.bi"
 #include once "ast.bi"
+#include once "rtl.bi"
 
 ''
 '' (SymbolType ',')? Expression
@@ -23,7 +24,12 @@ private function hOptionalTypeAndFirstExpr _
 
 		'' check for types invalid for PEEK/POKE
 		select case( dtype )
-		case FB_DATATYPE_VOID, FB_DATATYPE_FIXSTR
+		case FB_DATATYPE_VOID
+			'' if ANY type, caller has to handle args for fb_MemMove
+			subtype = NULL
+			exit function
+
+		case FB_DATATYPE_FIXSTR
 			errReport( FB_ERRMSG_INVALIDDATATYPES, TRUE )
 			'' error recovery: fake a type
 			dtype = FB_DATATYPE_UBYTE
@@ -50,6 +56,37 @@ private function hOptionalTypeAndFirstExpr _
 end function
 
 ''
+'' PokeAnyStmt  =  POKE ANY ',' Expression ',' Expression ',' Expression .
+''
+private function cPokeAny( ) as integer
+
+	function = FALSE
+
+	'' POKE ANY tokens already parsed by caller
+
+	'' ','
+	hMatchCOMMA( )
+	'' let PROCLOOKUP() and cProcCall() do the work of
+	'' parsing the rest of the statement and reporting
+	'' any errors
+	var sym = PROCLOOKUP( MEMMOVE )
+	if( sym = NULL ) then
+		exit function
+	end if
+
+	var proc = cProcCall( NULL, sym, NULL, NULL, FALSE, FB_PARSEROPT_NONE )
+
+	if( proc = NULL ) then
+		exit function
+	end if
+
+	astAdd( proc )
+
+	function = TRUE
+
+end function
+
+''
 '' PokeStmt  =  POKE (SymbolType ',')? Expression ',' Expression .
 ''
 function cPokeStmt( ) as integer
@@ -65,40 +102,50 @@ function cPokeStmt( ) as integer
 	'' (SymbolType ',')? Expression
 	expr1 = hOptionalTypeAndFirstExpr( poketype, subtype )
 
+	'' was ANY type?
+	if( poketype = FB_DATATYPE_VOID ) then
+		return cPokeAny()
+	end if
+
 	'' ','
 	hMatchCOMMA( )
 
 	hMatchExpressionEx( expr2, FB_DATATYPE_INTEGER )
 
-    select case astGetDataClass( expr1 )
-    case FB_DATACLASS_STRING
-    	errReport( FB_ERRMSG_INVALIDDATATYPES )
-    	'' no error recovery: stmt was already parsed
-    	astDelTree( expr1 )
-        exit function
+	select case astGetDataClass( expr1 )
+	case FB_DATACLASS_STRING
+		errReport( FB_ERRMSG_INVALIDDATATYPES )
+		'' no error recovery: stmt was already parsed
+		astDelTree( expr1 )
+		exit function
 
 	case FB_DATACLASS_FPOINT
-    	expr1 = astNewCONV( FB_DATATYPE_UINT, NULL, expr1 )
+		expr1 = astNewCONV( FB_DATATYPE_UINT, NULL, expr1 )
 
 	case else
 		if( typeGetSize( astGetDataType( expr1 ) ) <> env.pointersize ) then
-        	errReport( FB_ERRMSG_INVALIDDATATYPES )
-        	'' no error recovery: ditto
-        	astDelTree( expr1 )
-        	exit function
-        end if
+			errReport( FB_ERRMSG_INVALIDDATATYPES )
+			'' no error recovery: ditto
+			astDelTree( expr1 )
+			exit function
+		end if
 	end select
 
-    expr1 = astNewDEREF( expr1, poketype, subtype )
+	'' try to convert address to poketype pointer to check constness
+	if( fbPdCheckIsSet( FB_PDCHECK_CONSTNESS ) ) then
+		expr1 = astNewCONV( typeAddrOf(poketype), subtype, expr1 )
+	end if
 
-    expr1 = astNewASSIGN( expr1, expr2 )
-    if( expr1 = NULL ) then
+	expr1 = astNewDEREF( expr1, poketype, subtype )
+
+	expr1 = astNewASSIGN( expr1, expr2 )
+	if( expr1 = NULL ) then
 		errReport( FB_ERRMSG_INVALIDDATATYPES )
 	else
 		astAdd( expr1 )
 	end if
 
-    function = TRUE
+	function = TRUE
 
 end function
 

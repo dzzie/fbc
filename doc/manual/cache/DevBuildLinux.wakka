@@ -8,6 +8,7 @@ Generally, compiling FB-linux requires the following packages:
 	- gcc
 	- make
 	- ncurses development headers & libraries (actually only its libtinfo part)
+	- libtinfo development headers & libraries (if not automatically installed as part of ncurses)
 	- gpm development headers & libraries (general purpose mouse)
 	- X11 development headers & libraries (including X11, Xext, Xpm, Xrandr, Xrender)
 	- ""OpenGL"" development headers & libraries (typically from the Mesa project)
@@ -38,6 +39,7 @@ Debian-based systems (including Ubuntu, Mint etc.):
 	- ##gcc##
 	- ##make##
 	- ##libncurses5-dev##
+	- ##libtinfo5-dev## (if not already installed as dependency of ncurses)
 	- ##libgpm-dev##
 	- ##libx11-dev##
 	- ##libxext-dev##
@@ -51,14 +53,16 @@ Debian-based systems (including Ubuntu, Mint etc.):
 	- ##gcc##
 	- ##make##
 	- ##ncurses-devel##
+	- ##libncurses5##
 	- ##gpm-devel##
 	- ##libX11-devel##
 	- ##libXext-devel##
 	- ##libXpm-devel##
 	- ##libXrandr-devel##
 	- ##libXrender-devel##
+	- ##libtinfo5## (if not already installed as dependency of ncurses)
 	- ##Mesa-libGL-devel##
-	- ##libffi48-devel##
+	- ##libffi-devel##
 
 Fedora:
 	- ##gcc##
@@ -92,11 +96,11 @@ Afterwards, you can install the new fbc build into ##/usr/local## by running "ma
 
 Besides native builds, you can also make non-native builds, such as compiling the 32bit version of FB on a 64bit system, using an existing 32bit FB build to bootstrap. This was very common before 64bit support was added to FB. It requires a slightly different procedure than a native build.
 
-	1) Get the FB source code.
+	-Get the FB source code.
 	
-	1) Install a 32bit version of FB for bootstrapping (instead of a native 64bit version).
+	-Install a 32bit version of FB for bootstrapping (instead of a native 64bit version).
 	
-	1) Install 32bit development packages (not just the native 64bit ones).
+	-Install 32bit development packages (not just the native 64bit ones).
 	
 		64bit Debian/Ubuntu example:
 			- ##gcc-multilib##
@@ -122,9 +126,9 @@ Besides native builds, you can also make non-native builds, such as compiling th
 			- ##libXrandr-devel-32bit##
 			- ##libXrender-devel-32bit##
 			- ##Mesa-libGL-devel-32bit##
-			- ##libffi48-devel-32bit##
+			- ##libffi-devel-32bit##
 	
-	1) Add the following ##config.mk## file to the fbc source tree (next to the FB makefile):
+	-Add the following ##config.mk## file to the fbc source tree (next to the FB makefile):
 	
 	
 		%%CC = gcc -m32
@@ -138,13 +142,13 @@ TARGET_ARCH = x86
 		
 		Setting the TARGET_ARCH to x86 is necessary to override the FB makefile's ##uname -m## check (because that returns x86_64 on 64bit). This allows the FB makefile to select the proper x86 rtlib/gfxlib2 modules and to use the correct directory layout for x86.
 	
-	1) Run "make" and let it compile FB:
+	-Run "make" and let it compile FB:
 	
 	
 		%%$ cd ~/fbc
 $ make
 %%
-	1) Optionally, install the newly built 32bit FB setup into ##/usr/local##:
+	-Optionally, install the newly built 32bit FB setup into ##/usr/local##:
 	
 	
 		%%$ sudo make install
